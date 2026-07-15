@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Environment variables (keep secrets safe)
+.env
+
+# SQLite database (runtime data)
+data/
+backups/
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+
+# Build artifacts
+dist/
+build/

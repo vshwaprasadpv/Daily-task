@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Creative Task Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/css/style.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- ── SIDEBAR ─────────────────────────── -->
+    <nav class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <span class="logo-icon">🎨</span>
+        <div class="logo-text">
+          <h2>Creative Task Mgr</h2>
+          <p>Team Workspace</p>
+        </div>
+      </div>
+
+      <div class="sidebar-user">
+        <div class="user-avatar" id="sidebarAvatar">A</div>
+        <div class="user-info">
+          <div class="name" id="sidebarName">Loading...</div>
+          <div class="role" id="sidebarRole">—</div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav" id="sidebarNav">
+        <!-- Nav items injected by app.js based on role -->
+      </nav>
+
+      <div class="sidebar-footer">
+        <button class="btn-logout" onclick="logout()">
+          <span>🚪</span> Sign Out
+        </button>
+      </div>
+    </nav>
+
+    <!-- ── MAIN CONTENT ─────────────────────── -->
+    <div class="main-content">
+      <header class="top-header">
+        <div class="header-title">
+          <h1 id="headerTitle">Dashboard</h1>
+          <p id="headerSub" id="headerSub">Overview</p>
+        </div>
+        <div class="header-actions">
+          <div class="notif-btn" onclick="toggleNotifPanel()" title="Notifications">
+            🔔
+            <div class="notif-badge" id="notifBadge"></div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Notification Panel -->
+      <div class="notif-panel" id="notifPanel">
+        <div class="notif-panel-header">
+          <strong style="font-size:14px;">Notifications</strong>
+          <button class="btn btn-sm btn-ghost" onclick="markAllRead()">Mark all read</button>
+        </div>
+        <div id="notifList"><div class="loading"><div class="spin"></div> Loading...</div></div>
+      </div>
+
+      <div class="content-area" id="contentArea">
+        <!-- ── DASHBOARD ────────────────────── -->
+        <section class="page-section active" id="section-dashboard">
+          <div class="stats-grid" id="statsGrid">
+            <div class="loading"><div class="spin"></div></div>
+          </div>
+          <div class="charts-grid">
+            <div class="chart-card">
+              <div class="card-header">
+                <span class="card-title">📅 7-Day Task Completion Trend</span>
+              </div>
+              <canvas id="trendChart"></canvas>
+            </div>
+            <div class="chart-card">
+              <div class="card-header">
+                <span class="card-title">🥧 Task Categories</span>
+              </div>
+              <canvas id="categoryChart"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">🕐 Recent Activity</span>
+            </div>
+            <div class="activity-list" id="activityFeed"></div>
+          </div>
+        </section>
+
+        <!-- ── TASKS ────────────────────────── -->
+        <section class="page-section" id="section-tasks">
+          <div class="page-header">
+            <div><h2>Task Management</h2><p>Manage and track all team tasks</p></div>
+            <button class="btn btn-primary" id="addTaskBtn" onclick="openAddTask()">＋ Add Task</button>
+          </div>
+          <div class="card">
+            <div class="filter-bar">
+              <div class="search-input">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="taskSearch" placeholder="Search tasks..." oninput="filterTasks()"/>
+              </div>
+              <select class="filter-select" id="taskStatusFilter" onchange="filterTasks()">
+                <option value="">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="completed">Completed</option>
+              </select>
+              <select class="filter-select" id="taskPriorityFilter" onchange="filterTasks()">
+                <option value="">All Priority</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Title</th><th>Assigned To</th><th>Priority</th>
+                    <th>Category</th><th>Due Date</th><th>Status</th><th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="tasksTableBody"><tr><td colspan="7"><div class="loading"><div class="spin"></div></div></td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ── USERS ────────────────────────── -->
+        <section class="page-section" id="section-users">
+          <div class="page-header">
+            <div><h2>User Management</h2><p>Manage team members and roles</p></div>
+            <button class="btn btn-primary" onclick="openAddUser()">＋ Add Member</button>
+          </div>
+          <div class="card">
+            <div class="filter-bar">
+              <div class="search-input">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="userSearch" placeholder="Search members..." oninput="filterUsers()"/>
+              </div>
+              <select class="filter-select" id="userRoleFilter" onchange="filterUsers()">
+                <option value="">All Roles</option>
+                <option value="super_admin">Super Admin</option>
+                <option value="admin">Admin</option>
+                <option value="team_lead">Team Lead</option>
+                <option value="designer">Designer</option>
+                <option value="video_editor">Video Editor</option>
+                <option value="viewer">Viewer</option>
+              </select>
+              <select class="filter-select" id="userStatusFilter" onchange="filterUsers()">
+                <option value="">All Status</option>
+                <option value="active">Active</option>
+                <option value="disabled">Disabled</option>
+              </select>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Name</th><th>Email</th><th>Role</th><th>Department</th><th>Employee ID</th><th>Status</th><th>Actions</th></tr>
+                </thead>
+                <tbody id="usersTableBody"><tr><td colspan="7"><div class="loading"><div class="spin"></div></div></td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ── OKRs ─────────────────────────── -->
+        <section class="page-section" id="section-okrs">
+          <div class="page-header">
+            <div><h2>OKR Management</h2><p>Track Objectives & Key Results</p></div>
+            <button class="btn btn-primary" onclick="openAddOkr()">＋ Add OKR</button>
+          </div>
+          <div id="okrsContainer"><div class="loading"><div class="spin"></div> Loading OKRs...</div></div>
+        </section>
+
+        <!-- ── REPORTS ───────────────────────── -->
+        <section class="page-section" id="section-reports">
+          <div class="page-header">
+            <div><h2>Reports Generator</h2><p>Download task reports as PDF or Excel</p></div>
+          </div>
+          <div class="card" style="margin-bottom:20px;">
+            <div class="card-header"><span class="card-title">⚙️ Report Settings</span></div>
+            <div class="form-row cols-2">
+              <div class="form-group">
+                <label>Time Period</label>
+                <select class="form-control" id="reportTimeframe">
+                  <option value="daily">Today</option>
+                  <option value="weekly" selected>Last 7 Days</option>
+                  <option value="monthly">Last 30 Days</option>
+                  <option value="90days">Last 90 Days</option>
+                  <option value="180days">Last 180 Days</option>
+                  <option value="yearly">Last Year</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Department</label>
+                <select class="form-control" id="reportDept">
+                  <option value="all">All Departments</option>
+                  <option value="Design">Design</option>
+                  <option value="Video">Video</option>
+                  <option value="Marketing">Marketing</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="reports-grid">
+            <div class="report-option" onclick="downloadReport('pdf')">
+              <div class="report-icon">📄</div>
+              <h3>PDF Report</h3>
+              <p>Download styled PDF report with task breakdown, summary stats, and formatted table</p>
+              <br/>
+              <button class="btn btn-primary">⬇ Download PDF</button>
+            </div>
+            <div class="report-option" onclick="downloadReport('excel')">
+              <div class="report-icon">📊</div>
+              <h3>Excel Report</h3>
+              <p>Download Excel spreadsheet with full task data, filters, and color-coded rows</p>
+              <br/>
+              <button class="btn btn-success">⬇ Download Excel</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ── ACTIVITY LOG ──────────────────── -->
+        <section class="page-section" id="section-activity">
+          <div class="page-header">
+            <div><h2>Activity Log</h2><p>Full audit trail of all actions</p></div>
+          </div>
+          <div class="card">
+            <div class="filter-bar">
+              <div class="search-input">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="activitySearch" placeholder="Search activities..." oninput="filterActivities()"/>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>User</th><th>Action</th><th>Details</th><th>Time</th></tr></thead>
+                <tbody id="activityTableBody"><tr><td colspan="4"><div class="loading"><div class="spin"></div></div></td></tr></tbody>
+              </table>
+            </div>
+            <div style="display:flex;justify-content:center;margin-top:16px;gap:10px;" id="activityPagination"></div>
+          </div>
+        </section>
+
+        <!-- ── BACKUP ────────────────────────── -->
+        <section class="page-section" id="section-backup">
+          <div class="page-header">
+            <div><h2>Backup Management</h2><p>Create and restore data snapshots</p></div>
+            <button class="btn btn-primary" onclick="createBackup()">💾 Create Backup</button>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">📦 Saved Backups</span></div>
+            <div id="backupList"><div class="loading"><div class="spin"></div> Loading...</div></div>
+          </div>
+        </section>
+
+        <!-- ── PROFILE ───────────────────────── -->
+        <section class="page-section" id="section-profile">
+          <div class="page-header"><div><h2>My Profile</h2><p>Your account information</p></div></div>
+          <div class="card" style="max-width:560px;">
+            <div id="profileContent"><div class="loading"><div class="spin"></div></div></div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ADD/EDIT TASK MODAL ──────────────── -->
+  <div class="modal-overlay" id="taskModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="taskModalTitle">Add Task</h3>
+        <button class="modal-close" onclick="closeModal('taskModal')">✕</button>
+      </div>
+      <form id="taskForm">
+        <input type="hidden" id="taskId"/>
+        <div class="form-row">
+          <div class="form-group"><label>Task Title *</label><input class="form-control" id="taskTitle" required/></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Description</label><textarea class="form-control" id="taskDesc"></textarea></div>
+        </div>
+        <div class="form-row cols-2">
+          <div class="form-group"><label>Assign To *</label><select class="form-control" id="taskAssign" required></select></div>
+          <div class="form-group"><label>Priority</label>
+            <select class="form-control" id="taskPriority">
+              <option value="high">🔴 High</option><option value="medium" selected>🟡 Medium</option><option value="low">🟢 Low</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row cols-2">
+          <div class="form-group"><label>Category</label>
+            <select class="form-control" id="taskCategory">
+              <option>Banner Design</option><option>Poster Design</option><option>Reel Editing</option>
+              <option>Video Campaign</option><option>Instagram Story</option><option>Branding</option>
+              <option>Copywriting</option><option>Audio Syncing</option><option>Thumbnail Creation</option><option>Miscellaneous</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Due Date</label><input type="date" class="form-control" id="taskDue"/></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" onclick="closeModal('taskModal')">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="taskSubmitBtn">Save Task</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── COMPLETE TASK MODAL ──────────────── -->
+  <div class="modal-overlay" id="completeModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>✅ Submit Daily Update</h3>
+        <button class="modal-close" onclick="closeModal('completeModal')">✕</button>
+      </div>
+      <input type="hidden" id="completeTaskId"/>
+      <div class="form-group" style="margin-bottom:0;">
+        <label>Completion Notes</label>
+        <textarea class="form-control" id="completionNote" rows="4" placeholder="Describe what you completed, any blockers, next steps..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('completeModal')">Cancel</button>
+        <button class="btn btn-success" onclick="submitCompletion()">✅ Mark as Completed</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ADD/EDIT USER MODAL ──────────────── -->
+  <div class="modal-overlay" id="userModal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h3 id="userModalTitle">Add Team Member</h3>
+        <button class="modal-close" onclick="closeModal('userModal')">✕</button>
+      </div>
+      <form id="userForm">
+        <input type="hidden" id="userId"/>
+        <div class="form-row cols-2">
+          <div class="form-group"><label>Full Name *</label><input class="form-control" id="userName" required/></div>
+          <div class="form-group"><label>Email *</label><input type="email" class="form-control" id="userEmail" required/></div>
+        </div>
+        <div class="form-row cols-2">
+          <div class="form-group"><label>Password <span id="pwdNote" style="color:var(--text-muted);font-weight:400;">(required for new user)</span></label><input type="password" class="form-control" id="userPassword" placeholder="Leave blank to keep current"/></div>
+          <div class="form-group"><label>Phone</label><input class="form-control" id="userPhone"/></div>
+        </div>
+        <div class="form-row cols-3">
+          <div class="form-group"><label>Role</label>
+            <select class="form-control" id="userRole">
+              <option value="super_admin">Super Admin</option><option value="admin">Admin</option>
+              <option value="team_lead">Team Lead</option><option value="designer" selected>Designer</option>
+              <option value="video_editor">Video Editor</option><option value="viewer">Viewer</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Department</label>
+            <select class="form-control" id="userDept">
+              <option>Design</option><option>Video</option><option>Marketing</option><option>Management</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Employee ID</label><input class="form-control" id="userEmpId"/></div>
+        </div>
+        <div class="form-row cols-2">
+          <div class="form-group"><label>Reporting Manager</label><input class="form-control" id="userManager"/></div>
+          <div class="form-group"><label>Joining Date</label><input type="date" class="form-control" id="userJoining"/></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" onclick="closeModal('userModal')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Member</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── ADD OKR MODAL ────────────────────── -->
+  <div class="modal-overlay" id="okrModal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h3 id="okrModalTitle">Add OKR</h3>
+        <button class="modal-close" onclick="closeModal('okrModal')">✕</button>
+      </div>
+      <form id="okrForm">
+        <input type="hidden" id="okrId"/>
+        <div class="form-group" style="margin-bottom:16px;">
+          <label>Objective *</label>
+          <input class="form-control" id="okrObjective" placeholder="e.g. Increase Creative Output by 40%" required/>
+        </div>
+        <div style="margin-bottom:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <label style="font-size:12px;color:var(--text-muted);font-weight:500;">KEY RESULTS</label>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="addKrRow()">＋ Add Key Result</button>
+          </div>
+          <div id="krRows"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" onclick="closeModal('okrModal')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save OKR</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── TOAST CONTAINER ──────────────────── -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="/js/app.js"></script>
+  <script src="/js/dashboard.js"></script>
+  <script src="/js/tasks.js"></script>
+  <script src="/js/users.js"></script>
+  <script src="/js/okrs.js"></script>
+  <script src="/js/reports.js"></script>
+  <script src="/js/activity.js"></script>
+  <script src="/js/backup.js"></script>
+</body>
+</html>
