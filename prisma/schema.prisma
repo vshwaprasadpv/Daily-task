@@ -1,0 +1,189 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                String    @id @default(uuid())
+  name              String
+  email             String    @unique
+  passwordHash      String
+  phone             String?
+  role              String    @default("GRAPHIC_DESIGNER") // SUPER_ADMIN, ADMIN, TEAM_LEAD, etc.
+  department        String?
+  employeeId        String?
+  reportingManager  String?
+  joiningDate       DateTime?
+  status            String    @default("ACTIVE") // ACTIVE, DISABLED
+  profilePictureUrl String?
+  lastActiveAt      DateTime  @default(now())
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  workLogs      WorkLog[]
+  okrs          Okr[]
+  activities    Activity[]
+  notifications Notification[]
+
+  createdPasswords PasswordRecord[]     @relation("CreatedPasswords")
+  passwordAccess   PasswordUserAccess[]
+  passwordLogs     PasswordLog[]
+}
+
+model Client {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  logoUrl   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  projects         Project[]
+  workLogs         WorkLog[]
+  passwordRecords  PasswordRecord[]
+}
+
+model Project {
+  id        String    @id @default(uuid())
+  name      String
+  clientId  String
+  client    Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  workLogs  WorkLog[]
+
+  @@unique([name, clientId])
+}
+
+model WorkLog {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date          DateTime  @default(now())
+  clientId      String
+  client        Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  projectId     String?
+  project       Project?   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskType      String    // Reel, Carousel, UI Design, etc.
+  topic         String
+  description   String?
+  timeSpent     Int       @default(0) // in minutes
+  priority      String    @default("MEDIUM") // LOW, MEDIUM, HIGH
+  attachmentUrl String?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Okr {
+  id           String      @id @default(uuid())
+  objective    String
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetYear   Int
+  targetPeriod String      // e.g. "Q1", "Q2", "Monthly-Jan", etc.
+  startDate    DateTime    @default(now())
+  endDate      DateTime    @default(now())
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  status       String        @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED
+  
+  keyResults   KeyResult[]
+  updates      OkrUpdate[]
+}
+
+model OkrUpdate {
+  id          String   @id @default(uuid())
+  okrId       String
+  okr         Okr      @relation(fields: [okrId], references: [id], onDelete: Cascade)
+  comment     String?
+  description String?
+  fileUrl     String?  // Link to a document or file
+  createdAt   DateTime @default(now())
+}
+
+model KeyResult {
+  id         String   @id @default(uuid())
+  okrId      String
+  okr        Okr      @relation(fields: [okrId], references: [id], onDelete: Cascade)
+  title      String
+  target     Int      @default(100)
+  current    Int      @default(0)
+  unit       String   @default("units") // "units", "%", etc.
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Activity {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userLabel String?  // Stores user name directly in case user is deleted
+  action    String
+  details   String
+  timestamp DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model PasswordRecord {
+  id               String   @id @default(uuid())
+  platformName     String
+  websiteUrl       String?
+  username         String
+  passwordHash     String
+  category         String   @default("Other")
+  clientId         String?
+  client           Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  notes            String?
+  expiryDate       DateTime?
+  twoFactorEnabled Boolean  @default(false)
+  attachmentUrl    String?
+  status           String   @default("ACTIVE") // ACTIVE, DISABLED
+  createdById      String
+  createdBy        User     @relation("CreatedPasswords", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  roleAccess       PasswordRoleAccess[]
+  userAccess       PasswordUserAccess[]
+  logs             PasswordLog[]
+}
+
+model PasswordRoleAccess {
+  id         String         @id @default(uuid())
+  passwordId String
+  password   PasswordRecord @relation(fields: [passwordId], references: [id], onDelete: Cascade)
+  role       String         // e.g., "GRAPHIC_DESIGNER"
+  createdAt  DateTime       @default(now())
+}
+
+model PasswordUserAccess {
+  id         String         @id @default(uuid())
+  passwordId String
+  password   PasswordRecord @relation(fields: [passwordId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime       @default(now())
+}
+
+model PasswordLog {
+  id         String         @id @default(uuid())
+  passwordId String
+  password   PasswordRecord @relation(fields: [passwordId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action     String         // VIEW, COPY_USERNAME, COPY_PASSWORD, REVEAL, OPEN_WEBSITE, UPDATE, GRANT, REVOKE
+  timestamp  DateTime       @default(now())
+}

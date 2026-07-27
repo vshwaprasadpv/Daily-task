@@ -1,0 +1,126 @@
+@import "tailwindcss";
+
+:root {
+  --bg-primary:     #07070f;
+  --bg-secondary:   #0d0d1a;
+  --bg-card:        #111127;
+  --glass-bg:       rgba(17,17,39,0.8);
+  --glass-border:   rgba(255,255,255,0.08);
+  --glass-border-h: rgba(255,255,255,0.16);
+  --primary:        #6366f1;
+  --primary-light:  #818cf8;
+  --secondary:      #8b5cf6;
+  --accent:         #06b6d4;
+  --success:        #10b981;
+  --warning:        #f59e0b;
+  --danger:         #ef4444;
+  --text-primary:   #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted:     #64748b;
+  --sidebar-w:      260px;
+  --header-h:       64px;
+  --radius:         14px;
+  --radius-sm:      8px;
+  --shadow:         0 8px 32px rgba(0,0,0,0.4);
+  --transition:     0.2s cubic-bezier(0.4,0,0.2,1);
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, sans-serif;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Custom Glassmorphism styles */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow);
+}
+
+.glass-panel-hover:hover {
+  border-color: var(--glass-border-h);
+  transform: translateY(-2px);
+  transition: var(--transition);
+}
+
+.grad-text {
+  background: linear-gradient(135deg, var(--primary-light), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Animations */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* Print Styles for PDF Export */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  .glass-panel {
+    background: white !important;
+    border: 1px solid #ddd !important;
+    box-shadow: none !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  
+  h1, h2, h3, h4, h5, h6, p, span, div, text {
+    color: black !important;
+    fill: black !important;
+  }
+  
+  /* Ensure charts and layout expand to fit page */
+  main {
+    overflow: visible !important;
+    height: auto !important;
+  }
+  
+  /* Hide UI elements that shouldn't be printed */
+  aside, nav, .print\:hidden {
+    display: none !important;
+  }
+}
