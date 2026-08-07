@@ -108,6 +108,9 @@ export default function AdminReports() {
                   <option value="Video">Video</option>
                   <option value="Marketing">Marketing</option>
                   <option value="Management">Management</option>
+                  <option value="Social Media">Social Media</option>
+                  <option value="Developers">Developers</option>
+                  <option value="SEO">SEO</option>
                 </select>
               </div>
             </div>

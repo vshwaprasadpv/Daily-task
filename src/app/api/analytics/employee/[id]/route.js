@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import fs from 'fs';
+import path from 'path';
 
 export const dynamic = 'force-dynamic';
 
@@ -98,15 +100,53 @@ export async function GET(req, { params }) {
     const clientChart = Object.keys(clientDistribution).map(k => ({ name: k, hours: Math.round(clientDistribution[k]*10)/10 }));
     const projectChart = Object.keys(projectDistribution).map(k => ({ name: k, hours: Math.round(projectDistribution[k]*10)/10 }));
     
+    // Load office holidays list
+    const holidaysFilePath = path.join(process.cwd(), 'src/data/holidays.json');
+    let holidays = [];
+    try {
+      if (fs.existsSync(holidaysFilePath)) {
+        holidays = JSON.parse(fs.readFileSync(holidaysFilePath, 'utf8'));
+      }
+    } catch (err) {
+      console.error('Failed to load holidays in employee endpoint:', err);
+    }
+
     // Fill empty days for timeline
     const dailyTimeline = [];
     for (let i = 29; i >= 0; i--) {
       const d = new Date(now);
       d.setDate(now.getDate() - i);
       const dateStr = d.toISOString().slice(0, 10);
+      
+      const dayOfWeek = d.getUTCDay(); // 0 is Sunday, 6 is Saturday
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const isHoliday = holidays.includes(dateStr);
+
       dailyTimeline.push({
         date: dateStr,
+        isWeekend,
+        isHoliday,
         hours: Math.round((dailyTimelineMap[dateStr] || 0)*10)/10
+      });
+    }
+
+    // Monthly timeline calculation (rolling 12 months)
+    const monthlyTimeline = [];
+    const monthlyTimelineMap = {};
+    workLogs.forEach(log => {
+      const logDate = new Date(log.date);
+      const yearMonth = `${logDate.getFullYear()}-${String(logDate.getMonth() + 1).padStart(2, '0')}`;
+      monthlyTimelineMap[yearMonth] = (monthlyTimelineMap[yearMonth] || 0) + (log.timeSpent / 60);
+    });
+
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const yearMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const monthLabel = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      monthlyTimeline.push({
+        date: yearMonth,
+        label: monthLabel,
+        hours: Math.round((monthlyTimelineMap[yearMonth] || 0) * 10) / 10
       });
     }
 
@@ -144,7 +184,8 @@ export async function GET(req, { params }) {
         taskType: taskTypeChart,
         clientHours: clientChart,
         projectHours: projectChart,
-        dailyTimeline
+        dailyTimeline,
+        monthlyTimeline
       },
       history: filteredLogs.slice(0, 50) // Return last 50 for table
     });

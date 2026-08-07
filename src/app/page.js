@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { 
@@ -11,7 +11,8 @@ import {
   Paperclip,
   CheckCircle,
   TrendingUp,
-  Target
+  Target,
+  Search
 } from 'lucide-react';
 
 export default function UserDashboard() {
@@ -22,6 +23,19 @@ export default function UserDashboard() {
   const [filteredProjects, setFilteredProjects] = useState([]);
   const [workLogs, setWorkLogs] = useState([]);
   const [okrs, setOkrs] = useState([]);
+  
+  // Search, Month & Pagination State
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; // Default to current month
+  });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedMonth]);
 
   // Form State
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -170,15 +184,85 @@ export default function UserDashboard() {
     }
   };
 
-  if (!user) return null;
+  // Generate month options from workLogs
+  const monthOptions = useMemo(() => {
+    const options = new Map();
+    
+    // Add current month by default
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const currentMonthLabel = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    options.set(currentMonthKey, currentMonthLabel);
+    
+    // Add months from workLogs
+    workLogs.forEach(log => {
+      if (log.date) {
+        const d = new Date(log.date);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        options.set(key, label);
+      }
+    });
+    
+    // Convert to sorted array
+    return Array.from(options.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [workLogs]);
 
-  const totalCompletedHours = workLogs.reduce((acc, log) => acc + (log.timeSpent / 60), 0);
+  // Filter logs by selected month first
+  const monthlyLogs = useMemo(() => {
+    if (selectedMonth === 'all') return workLogs;
+    const [year, month] = selectedMonth.split('-').map(Number);
+    return workLogs.filter(log => {
+      const logDate = new Date(log.date);
+      return logDate.getFullYear() === year && (logDate.getMonth() + 1) === month;
+    });
+  }, [workLogs, selectedMonth]);
+
+  // Filter work logs by search query (topic/client/project/taskType)
+  const filteredLogs = useMemo(() => {
+    if (!searchQuery.trim()) return monthlyLogs;
+    const query = searchQuery.toLowerCase().trim();
+    return monthlyLogs.filter(log => 
+      (log.topic && log.topic.toLowerCase().includes(query)) ||
+      (log.client?.name && log.client.name.toLowerCase().includes(query)) ||
+      (log.project?.name && log.project.name.toLowerCase().includes(query)) ||
+      (log.taskType && log.taskType.toLowerCase().includes(query))
+    );
+  }, [monthlyLogs, searchQuery]);
+
+  // Sliced logs for dashboard table pagination
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedLogs = filteredLogs.slice(startIndex, endIndex);
+
+  // Stats calculation based on monthlyLogs (filtered by month)
+  const totalCompletedHours = monthlyLogs.reduce((acc, log) => acc + (log.timeSpent / 60), 0);
+
+  // Active OKR Progress month-wise
+  const activeOkrProgress = useMemo(() => {
+    const okrsInMonth = okrs.filter(okr => {
+      if (selectedMonth === 'all') return true;
+      const [year, month] = selectedMonth.split('-').map(Number);
+      const monthStart = new Date(year, month - 1, 1);
+      const monthEnd = new Date(year, month, 0, 23, 59, 59);
+      
+      const okrStart = new Date(okr.startDate);
+      const okrEnd = new Date(okr.endDate);
+      
+      return okrStart <= monthEnd && okrEnd >= monthStart;
+    });
+    return okrsInMonth.length > 0 
+      ? Math.round(okrsInMonth.reduce((acc, o) => acc + o.progress, 0) / okrsInMonth.length)
+      : 0;
+  }, [okrs, selectedMonth]);
 
   const taskTypes = [
     'Reel', 'Carousel', 'Static Post', 'Long Video', 'Short Video',
     'Motion Graphic', 'UI Design', 'Website Design', 'Landing Page',
     'Banner', 'Logo', 'Branding', 'Presentation', 'Thumbnail', 'Ad Creative', 'Other Work'
   ];
+
+  if (!user) return null;
 
   return (
     <div className="flex min-h-screen bg-[var(--bg-primary)]">
@@ -199,22 +283,47 @@ export default function UserDashboard() {
 
         {/* Content */}
         <div className="p-8 space-y-8 flex-1">
+          {/* Month Selector Filter Control Panel */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-5 rounded-2xl glass-panel bg-[rgba(255,255,255,0.02)] border border-[var(--glass-border)]">
+            <div>
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[var(--primary-light)] animate-pulse"></span>
+                Dashboard Overview Filter
+              </h3>
+              <p className="text-[10px] text-[var(--text-muted)] mt-0.5">Filter quick metrics and logs list by specific month</p>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">Select Month:</span>
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="bg-[#111127] border border-[var(--glass-border)] rounded-xl py-2 px-4 text-xs font-bold text-white focus:outline-none focus:border-[var(--primary-light)] cursor-pointer hover:bg-[#181835] transition-all"
+              >
+                <option value="all">All Time</option>
+                {monthOptions.map(([key, label]) => (
+                  <option key={key} value={key}>{label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           {/* Quick Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="p-6 rounded-2xl glass-panel relative overflow-hidden bg-[var(--glass-bg)] border-[var(--glass-border)]">
-              <Clock className="w-8 h-8 text-[var(--warning)] mb-3" />
+            <div className="p-6 rounded-2xl glass-panel relative overflow-hidden bg-[var(--glass-bg)] border-[var(--glass-border)] group hover:border-[rgba(251,191,36,0.3)] transition-all">
+              <Clock className="w-8 h-8 text-[var(--warning)] mb-3 group-hover:scale-110 transition-all duration-300" />
               <p className="text-2xl font-black text-white">{Math.round(totalCompletedHours * 10) / 10}h</p>
-              <p className="text-[11px] text-[var(--text-muted)] font-semibold uppercase tracking-wider mt-1">Total Effort Logged</p>
+              <p className="text-[10px] text-[var(--text-muted)] font-semibold uppercase tracking-wider mt-1">Total Effort Logged ({selectedMonth === 'all' ? 'All Time' : 'Selected Month'})</p>
             </div>
-            <div className="p-6 rounded-2xl glass-panel relative overflow-hidden bg-[var(--glass-bg)] border-[var(--glass-border)]">
-              <FileCheck className="w-8 h-8 text-[var(--success)] mb-3" />
-              <p className="text-2xl font-black text-white">{workLogs.length}</p>
-              <p className="text-[11px] text-[var(--text-muted)] font-semibold uppercase tracking-wider mt-1">Completed Submissions</p>
+            <div className="p-6 rounded-2xl glass-panel relative overflow-hidden bg-[var(--glass-bg)] border-[var(--glass-border)] group hover:border-[rgba(34,197,94,0.3)] transition-all">
+              <FileCheck className="w-8 h-8 text-[var(--success)] mb-3 group-hover:scale-110 transition-all duration-300" />
+              <p className="text-2xl font-black text-white">{monthlyLogs.length}</p>
+              <p className="text-[10px] text-[var(--text-muted)] font-semibold uppercase tracking-wider mt-1">Completed Submissions ({selectedMonth === 'all' ? 'All Time' : 'Selected Month'})</p>
             </div>
-            <div className="p-6 rounded-2xl glass-panel relative overflow-hidden bg-[var(--glass-bg)] border-[var(--glass-border)]">
-              <Target className="w-8 h-8 text-[var(--primary-light)] mb-3" />
-              <p className="text-2xl font-black text-white">{okrs.length > 0 ? `${okrs[0].progress}%` : '0%'}</p>
-              <p className="text-[11px] text-[var(--text-muted)] font-semibold uppercase tracking-wider mt-1">Active OKR Progress</p>
+            <div className="p-6 rounded-2xl glass-panel relative overflow-hidden bg-[var(--glass-bg)] border-[var(--glass-border)] group hover:border-[rgba(99,102,241,0.3)] transition-all">
+              <Target className="w-8 h-8 text-[var(--primary-light)] mb-3 group-hover:scale-110 transition-all duration-300" />
+              <p className="text-2xl font-black text-white">{activeOkrProgress}%</p>
+              <p className="text-[10px] text-[var(--text-muted)] font-semibold uppercase tracking-wider mt-1">Active OKR Progress ({selectedMonth === 'all' ? 'All Time' : 'Selected Month'})</p>
             </div>
           </div>
 
@@ -391,12 +500,23 @@ export default function UserDashboard() {
             {/* Submitted log sheet list */}
             <div className="lg:col-span-3 space-y-6">
               <div className="p-6 rounded-2xl glass-panel bg-[var(--glass-bg)] border-[var(--glass-border)]">
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                   <div className="flex items-center gap-2">
                     <TrendingUp className="w-5 h-5 text-[var(--success)]" />
                     <h3 className="text-xs font-bold text-white uppercase tracking-wider">Work Log History</h3>
                   </div>
-                  <span className="text-[10px] bg-[rgba(255,255,255,0.04)] border border-[var(--glass-border)] px-2 py-1 rounded-md text-[var(--text-secondary)]">Showing recent logs</span>
+                  
+                  {/* Search Input Bar */}
+                  <div className="relative w-full sm:w-64">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-muted)] animate-pulse" />
+                    <input 
+                      type="text" 
+                      placeholder="Search topic, client or project..." 
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full bg-[rgba(255,255,255,0.03)] border border-[var(--glass-border)] rounded-xl py-1.5 pl-9 pr-4 text-xs text-white focus:outline-none focus:border-[var(--primary-light)] placeholder-[rgba(255,255,255,0.2)]"
+                    />
+                  </div>
                 </div>
 
                 <div className="overflow-x-auto rounded-xl border border-[var(--glass-border)]">
@@ -412,12 +532,12 @@ export default function UserDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--glass-border)]">
-                      {workLogs.length === 0 ? (
+                      {paginatedLogs.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="text-center p-8 text-[var(--text-muted)]">No completed logs found. Log your first output to see it here!</td>
+                          <td colSpan={6} className="text-center p-8 text-[var(--text-muted)]">No logs match your search query. Try another keyword!</td>
                         </tr>
                       ) : (
-                        workLogs.map(log => (
+                        paginatedLogs.map(log => (
                           <tr key={log.id} className="hover:bg-[rgba(255,255,255,0.015)] transition-all">
                             <td className="p-3.5 font-medium">{new Date(log.date).toLocaleDateString('en-IN')}</td>
                              <td className="p-3.5">
@@ -465,6 +585,52 @@ export default function UserDashboard() {
                     </tbody>
                   </table>
                 </div>
+                {/* Pagination Controls */}
+                {filteredLogs.length > 0 && (
+                  <div className="flex flex-col sm:flex-row items-center justify-between p-4 border-t border-[var(--glass-border)] text-xs text-[var(--text-secondary)] bg-[rgba(0,0,0,0.15)] gap-4 mt-4 rounded-xl">
+                    <div>
+                      Showing {startIndex + 1} to {Math.min(endIndex, filteredLogs.length)} of {filteredLogs.length} entries
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1.5 rounded-lg bg-[rgba(255,255,255,0.03)] border border-[var(--glass-border)] hover:bg-[rgba(255,255,255,0.08)] disabled:opacity-40 disabled:hover:bg-[rgba(255,255,255,0.03)] transition-all cursor-pointer font-bold disabled:cursor-not-allowed text-white"
+                      >
+                        Previous
+                      </button>
+                      
+                      {Array.from({ length: Math.ceil(filteredLogs.length / itemsPerPage) }, (_, idx) => idx + 1)
+                        .filter(page => page === 1 || page === Math.ceil(filteredLogs.length / itemsPerPage) || Math.abs(page - currentPage) <= 1)
+                        .map((page, idx, arr) => {
+                          const showEllipsisBefore = page > 1 && arr[idx - 1] !== page - 1;
+                          return (
+                            <React.Fragment key={page}>
+                              {showEllipsisBefore && <span className="px-1 text-[var(--text-muted)]">...</span>}
+                              <button
+                                onClick={() => setCurrentPage(page)}
+                                className={`px-3 py-1.5 rounded-lg border font-bold transition-all cursor-pointer ${
+                                  currentPage === page
+                                    ? 'bg-[var(--primary)] border-[var(--primary)] text-white shadow-md shadow-[rgba(99,102,241,0.2)]'
+                                    : 'bg-[rgba(255,255,255,0.03)] border-[var(--glass-border)] hover:bg-[rgba(255,255,255,0.08)] text-white'
+                                }`}
+                              >
+                                {page}
+                              </button>
+                            </React.Fragment>
+                          );
+                        })}
+
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredLogs.length / itemsPerPage)))}
+                        disabled={currentPage === Math.ceil(filteredLogs.length / itemsPerPage)}
+                        className="px-3 py-1.5 rounded-lg bg-[rgba(255,255,255,0.03)] border border-[var(--glass-border)] hover:bg-[rgba(255,255,255,0.08)] disabled:opacity-40 disabled:hover:bg-[rgba(255,255,255,0.03)] transition-all cursor-pointer font-bold disabled:cursor-not-allowed text-white"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

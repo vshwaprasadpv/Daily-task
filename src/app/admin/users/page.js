@@ -11,14 +11,35 @@ import {
   UserX,
   AlertCircle,
   CheckCircle,
-  X
+  X,
+  Search
 } from 'lucide-react';
+import { useMemo } from 'react';
 
 export default function AdminUsers() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Filters State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [departmentFilter, setDepartmentFilter] = useState('all');
+
+  const filteredUsers = useMemo(() => {
+    return users.filter(emp => {
+      const matchesSearch = searchQuery.trim() === '' || 
+        (emp.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (emp.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (emp.employeeId || '').toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesRole = roleFilter === 'all' || emp.role === roleFilter;
+      const matchesDept = departmentFilter === 'all' || emp.department === departmentFilter;
+
+      return matchesSearch && matchesRole && matchesDept;
+    });
+  }, [users, searchQuery, roleFilter, departmentFilter]);
 
   // Form Modal State
   const [showModal, setShowModal] = useState(false);
@@ -178,7 +199,11 @@ export default function AdminUsers() {
     { value: 'VIDEO_EDITOR', label: 'Video Editor' },
     { value: 'MOTION_DESIGNER', label: 'Motion Designer' },
     { value: 'CONTENT_WRITER', label: 'Content Writer' },
+    { value: 'SOCIAL_MEDIA_EXECUTIVE', label: 'Social Media Executive' },
+    { value: 'SOCIAL_MEDIA_MANAGER', label: 'Social Media Manager' },
+    { value: 'WEB_DEVELOPER', label: 'Web Developer' },
     { value: 'SEO_EXECUTIVE', label: 'SEO Executive' },
+    { value: 'SEO_MANAGER', label: 'SEO Manager' },
     { value: 'MARKETING_EXECUTIVE', label: 'Marketing Executive' },
     { value: 'OTHER', label: 'Other Role' }
   ];
@@ -210,7 +235,46 @@ export default function AdminUsers() {
               <div className="spinner"></div>
             </div>
           ) : (
-            <div className="glass-panel rounded-2xl bg-[var(--glass-bg)] border-[var(--glass-border)] overflow-hidden">
+            <div className="space-y-4">
+              {/* Search & Filters */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
+                  <input 
+                    type="text" 
+                    placeholder="Search name, email, or ID..." 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-[rgba(255,255,255,0.03)] border border-[var(--glass-border)] rounded-xl py-2 pl-9 pr-4 text-xs text-white focus:outline-none focus:border-[var(--primary-light)]"
+                  />
+                </div>
+                
+                <select 
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                  className="bg-[#111127] border border-[var(--glass-border)] rounded-xl py-2 px-3 text-xs text-white focus:outline-none focus:border-[var(--primary-light)]"
+                >
+                  <option value="all">All Roles</option>
+                  {roles.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                </select>
+
+                <select 
+                  value={departmentFilter}
+                  onChange={(e) => setDepartmentFilter(e.target.value)}
+                  className="bg-[#111127] border border-[var(--glass-border)] rounded-xl py-2 px-3 text-xs text-white focus:outline-none focus:border-[var(--primary-light)]"
+                >
+                  <option value="all">All Departments</option>
+                  <option value="Design">Design</option>
+                  <option value="Video">Video</option>
+                  <option value="Marketing">Marketing</option>
+                  <option value="Management">Management</option>
+                  <option value="Social Media">Social Media</option>
+                  <option value="Developers">Developers</option>
+                  <option value="SEO">SEO</option>
+                </select>
+              </div>
+
+              <div className="glass-panel rounded-2xl bg-[var(--glass-bg)] border-[var(--glass-border)] overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
@@ -224,7 +288,12 @@ export default function AdminUsers() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--glass-border)]">
-                    {users.map(emp => (
+                    {filteredUsers.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="text-center p-8 text-[var(--text-muted)]">No team members match your filters.</td>
+                      </tr>
+                    ) : (
+                      filteredUsers.map(emp => (
                       <tr key={emp.id} className="hover:bg-[rgba(255,255,255,0.01)] transition-all">
                         <td className="p-4">
                           <div className="flex items-center gap-3">
@@ -274,10 +343,11 @@ export default function AdminUsers() {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                    )))}
                   </tbody>
                 </table>
               </div>
+            </div>
             </div>
           )}
         </div>
@@ -383,6 +453,9 @@ export default function AdminUsers() {
                     <option value="Video">Video</option>
                     <option value="Marketing">Marketing</option>
                     <option value="Management">Management</option>
+                    <option value="Social Media">Social Media</option>
+                    <option value="Developers">Developers</option>
+                    <option value="SEO">SEO</option>
                   </select>
                 </div>
                 <div className="space-y-1">

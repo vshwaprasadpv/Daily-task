@@ -27,8 +27,16 @@ function WorkHistoryContent() {
   const [roleFilter, setRoleFilter] = useState('all');
   const [departmentFilter, setDepartmentFilter] = useState('all');
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
+
   // Modal State
   const [selectedLog, setSelectedLog] = useState(null);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, timeframe, taskTypeFilter, clientFilter, projectFilter, employeeFilter, roleFilter, departmentFilter]);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -46,7 +54,7 @@ function WorkHistoryContent() {
   const fetchHistory = async (sessionUser, queryUserId) => {
     try {
       let url = '/api/work-logs';
-      if (queryUserId && ['SUPER_ADMIN', 'ADMIN'].includes(sessionUser.role)) {
+      if (queryUserId && ['SUPER_ADMIN', 'ADMIN', 'TEAM_LEAD'].includes(sessionUser.role)) {
         url += `?userId=${queryUserId}`;
       }
 
@@ -75,7 +83,11 @@ function WorkHistoryContent() {
       if (log.project?.name) projects.add(log.project.name);
       if (log.user?.name) employees.add(log.user.name);
       if (log.user?.role) roles.add(log.user.role);
-      if (log.user?.department) departments.add(log.user.department);
+      if (log.user?.department) {
+        departments.add(log.user.department);
+      } else {
+        departments.add('Unassigned');
+      }
       if (log.taskType) taskTypes.add(log.taskType);
     });
 
@@ -192,7 +204,7 @@ function WorkHistoryContent() {
       l.timeSpent,
       l.priority,
       `"${l.user?.name || ''}"`,
-      (l.user?.role || '').replace('_', ' '),
+      (l.user?.role || '').replace(/_/g, ' '),
       l.user?.department || ''
     ]);
     const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
@@ -204,6 +216,11 @@ function WorkHistoryContent() {
     link.click();
     link.remove();
   };
+
+  // Sliced items for pagination
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedLogs = filteredLogs.slice(startIndex, endIndex);
 
   if (!user) return null;
   const isAdmin = ['SUPER_ADMIN', 'ADMIN', 'TEAM_LEAD'].includes(user.role?.toUpperCase());
@@ -337,8 +354,8 @@ function WorkHistoryContent() {
                           onChange={(e) => setEmployeeFilter(e.target.value)}
                           className="bg-[rgba(99,102,241,0.1)] border border-[rgba(99,102,241,0.2)] rounded-lg py-1.5 px-3 text-[10px] font-bold text-white focus:outline-none"
                         >
-                          <option value="all">All Employees</option>
-                          {filterOptions.employees.map(e => <option key={e} value={e}>{e}</option>)}
+                          <option value="all" className="bg-[#111127] text-white">All Employees</option>
+                          {filterOptions.employees.map(e => <option key={e} value={e} className="bg-[#111127] text-white">{e}</option>)}
                         </select>
                         
                         <select 
@@ -346,8 +363,8 @@ function WorkHistoryContent() {
                           onChange={(e) => setRoleFilter(e.target.value)}
                           className="bg-[rgba(99,102,241,0.1)] border border-[rgba(99,102,241,0.2)] rounded-lg py-1.5 px-3 text-[10px] font-bold text-white focus:outline-none"
                         >
-                          <option value="all">All Roles</option>
-                          {filterOptions.roles.map(r => <option key={r} value={r}>{r.replace('_', ' ')}</option>)}
+                          <option value="all" className="bg-[#111127] text-white">All Roles</option>
+                          {filterOptions.roles.map(r => <option key={r} value={r} className="bg-[#111127] text-white">{r.replace(/_/g, ' ')}</option>)}
                         </select>
 
                         <select 
@@ -355,8 +372,8 @@ function WorkHistoryContent() {
                           onChange={(e) => setDepartmentFilter(e.target.value)}
                           className="bg-[rgba(99,102,241,0.1)] border border-[rgba(99,102,241,0.2)] rounded-lg py-1.5 px-3 text-[10px] font-bold text-white focus:outline-none"
                         >
-                          <option value="all">All Departments / Teams</option>
-                          {filterOptions.departments.map(d => <option key={d} value={d}>{d}</option>)}
+                          <option value="all" className="bg-[#111127] text-white">All Departments / Teams</option>
+                          {filterOptions.departments.map(d => <option key={d} value={d} className="bg-[#111127] text-white">{d}</option>)}
                         </select>
                       </div>
                     )}
@@ -377,12 +394,12 @@ function WorkHistoryContent() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-[var(--glass-border)]">
-                          {filteredLogs.length === 0 ? (
+                          {paginatedLogs.length === 0 ? (
                             <tr>
                               <td colSpan={6} className="text-center p-8 text-[var(--text-muted)]">No logs match your filters.</td>
                             </tr>
                           ) : (
-                            filteredLogs.map(log => (
+                            paginatedLogs.map(log => (
                               <tr key={log.id} className="hover:bg-[rgba(255,255,255,0.015)] transition-all">
                                 <td className="p-3.5 whitespace-nowrap">
                                   <div className="font-bold text-white">{new Date(log.date).toLocaleDateString('en-IN')}</div>
@@ -420,6 +437,52 @@ function WorkHistoryContent() {
                         </tbody>
                       </table>
                     </div>
+                    {/* Pagination Controls */}
+                    {filteredLogs.length > 0 && (
+                      <div className="flex flex-col sm:flex-row items-center justify-between p-4 border-t border-[var(--glass-border)] text-xs text-[var(--text-secondary)] bg-[rgba(0,0,0,0.15)] gap-4">
+                        <div>
+                          Showing {startIndex + 1} to {Math.min(endIndex, filteredLogs.length)} of {filteredLogs.length} entries
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={currentPage === 1}
+                            className="px-3 py-1.5 rounded-lg bg-[rgba(255,255,255,0.03)] border border-[var(--glass-border)] hover:bg-[rgba(255,255,255,0.08)] disabled:opacity-40 disabled:hover:bg-[rgba(255,255,255,0.03)] transition-all cursor-pointer font-bold disabled:cursor-not-allowed text-white"
+                          >
+                            Previous
+                          </button>
+                          
+                          {Array.from({ length: Math.ceil(filteredLogs.length / itemsPerPage) }, (_, idx) => idx + 1)
+                            .filter(page => page === 1 || page === Math.ceil(filteredLogs.length / itemsPerPage) || Math.abs(page - currentPage) <= 1)
+                            .map((page, idx, arr) => {
+                              const showEllipsisBefore = page > 1 && arr[idx - 1] !== page - 1;
+                              return (
+                                <React.Fragment key={page}>
+                                  {showEllipsisBefore && <span className="px-1 text-[var(--text-muted)]">...</span>}
+                                  <button
+                                    onClick={() => setCurrentPage(page)}
+                                    className={`px-3 py-1.5 rounded-lg border font-bold transition-all cursor-pointer ${
+                                      currentPage === page
+                                        ? 'bg-[var(--primary)] border-[var(--primary)] text-white shadow-md shadow-[rgba(99,102,241,0.2)]'
+                                        : 'bg-[rgba(255,255,255,0.03)] border-[var(--glass-border)] hover:bg-[rgba(255,255,255,0.08)] text-white'
+                                    }`}
+                                  >
+                                    {page}
+                                  </button>
+                                </React.Fragment>
+                              );
+                            })}
+
+                          <button
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredLogs.length / itemsPerPage)))}
+                            disabled={currentPage === Math.ceil(filteredLogs.length / itemsPerPage)}
+                            className="px-3 py-1.5 rounded-lg bg-[rgba(255,255,255,0.03)] border border-[var(--glass-border)] hover:bg-[rgba(255,255,255,0.08)] disabled:opacity-40 disabled:hover:bg-[rgba(255,255,255,0.03)] transition-all cursor-pointer font-bold disabled:cursor-not-allowed text-white"
+                          >
+                            Next
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 

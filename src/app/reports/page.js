@@ -17,12 +17,84 @@ import {
   PieChart, Pie, Cell, Legend
 } from 'recharts';
 
+// Custom dot to make weekends red, holidays yellow
+const CustomDot = (props) => {
+  const { cx, cy, payload } = props;
+  const isWeekend = payload?.isWeekend;
+  const isHoliday = payload?.isHoliday;
+  
+  if (!cx || !cy) return null;
+
+  let strokeColor = "#6366f1"; // Default purple
+  if (isWeekend) strokeColor = "#ef4444"; // Red for weekend
+  if (isHoliday) strokeColor = "#fbbf24"; // Yellow for holidays
+
+  return (
+    <circle 
+      cx={cx} 
+      cy={cy} 
+      r={4} 
+      stroke={strokeColor} 
+      strokeWidth={2} 
+      fill="#12122a" 
+    />
+  );
+};
+
+// Custom tick to make weekend labels red, holidays yellow
+const CustomTick = (props) => {
+  const { x, y, payload, data } = props;
+  const tickData = data?.find(d => d.date === payload.value);
+  const isWeekend = tickData?.isWeekend;
+  const isHoliday = tickData?.isHoliday;
+
+  let fill = "rgba(255,255,255,0.3)"; // Default gray
+  if (isWeekend) fill = "#ef4444"; // Red for weekend
+  if (isHoliday) fill = "#fbbf24"; // Yellow for holidays
+
+  return (
+    <text 
+      x={x} 
+      y={y + 12} 
+      textAnchor="middle" 
+      fill={fill} 
+      fontSize={10}
+    >
+      {tickData ? parseInt(tickData.date.split('-')[2], 10) : payload.value}
+    </text>
+  );
+};
+
+const CustomTooltip = ({ active, payload }) => {
+  if (active && payload && payload.length) {
+    const dataPoint = payload[0].payload;
+    return (
+      <div className="bg-[#12122a] border border-gray-800 p-3 rounded-lg shadow-xl text-xs">
+        <p className="text-gray-300 font-medium mb-1">
+          {dataPoint.label ? dataPoint.label : new Date(dataPoint.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+        </p>
+        <p className="text-[#6366f1] font-bold">
+          {dataPoint.hours} Hours Worked
+        </p>
+        {dataPoint.isWeekend && (
+           <p className="text-red-500 font-semibold mt-1">Weekend</p>
+        )}
+        {dataPoint.isHoliday && (
+           <p className="text-yellow-500 font-semibold mt-0.5">Office Holiday</p>
+        )}
+      </div>
+    );
+  }
+  return null;
+};
+
 export default function EmployeeReports() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [timeframe, setTimeframe] = useState('month');
+  const [chartMode, setChartMode] = useState('daily'); // 'daily' or 'monthly'
 
   const fetchAnalytics = useCallback(async (userId) => {
     try {
@@ -143,24 +215,51 @@ export default function EmployeeReports() {
                 
                 {/* Timeline Chart */}
                 <div className="lg:col-span-2 p-6 rounded-2xl glass-panel bg-[var(--glass-bg)] border-[var(--glass-border)]">
-                  <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-6">30-Day Activity Timeline (Hours)</h3>
+                  <div className="flex justify-between items-center mb-6">
+                    <div>
+                      <h3 className="text-xs font-bold text-white uppercase tracking-wider">Productivity Timeline (Hours)</h3>
+                      <p className="text-[9px] text-[var(--text-muted)] mt-0.5">Chronological breakdown of logged effort (hours)</p>
+                    </div>
+                    
+                    {/* Daily / Monthly View Toggle */}
+                    <div className="flex items-center bg-[rgba(255,255,255,0.03)] border border-[var(--glass-border)] rounded-xl p-1 gap-1 print:hidden">
+                      <button
+                        onClick={() => setChartMode('daily')}
+                        className={`px-3 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                          chartMode === 'daily' 
+                            ? 'bg-[var(--primary)] text-white shadow-md' 
+                            : 'text-[var(--text-secondary)] hover:text-white'
+                        }`}
+                      >
+                        Daily
+                      </button>
+                      <button
+                        onClick={() => setChartMode('monthly')}
+                        className={`px-3 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                          chartMode === 'monthly' 
+                            ? 'bg-[var(--primary)] text-white shadow-md' 
+                            : 'text-[var(--text-secondary)] hover:text-white'
+                        }`}
+                      >
+                        Monthly
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="h-[250px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={analytics.charts.dailyTimeline}>
+                      <LineChart data={chartMode === 'daily' ? analytics.charts.dailyTimeline : analytics.charts.monthlyTimeline}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                         <XAxis 
-                          dataKey="date" 
+                          dataKey={chartMode === 'daily' ? "date" : "label"} 
                           stroke="rgba(255,255,255,0.3)" 
                           fontSize={10}
-                          tickFormatter={(val) => new Date(val).getDate()}
+                          tick={chartMode === 'daily' ? (props) => <CustomTick {...props} data={analytics.charts.dailyTimeline} /> : undefined}
+                          tickLine={false}
                         />
                         <YAxis stroke="rgba(255,255,255,0.3)" fontSize={10} />
-                        <RechartsTooltip 
-                          contentStyle={{ backgroundColor: '#12122a', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}
-                          itemStyle={{ color: '#fff', fontSize: '12px' }}
-                          labelStyle={{ color: 'var(--text-muted)', fontSize: '10px', marginBottom: '4px' }}
-                        />
-                        <Line type="monotone" dataKey="hours" stroke="var(--primary-light)" strokeWidth={3} dot={{ r: 2, fill: 'var(--primary)' }} activeDot={{ r: 5 }} />
+                        <RechartsTooltip content={<CustomTooltip />} />
+                        <Line type="monotone" dataKey="hours" stroke="var(--primary-light)" strokeWidth={3} dot={<CustomDot />} activeDot={{ r: 5 }} />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>

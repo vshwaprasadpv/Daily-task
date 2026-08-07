@@ -99,13 +99,13 @@ export async function GET(req) {
       logs.forEach((log, index) => {
         const row = worksheet.addRow([
           index + 1,
-          log.user.name,
-          log.client.name,
-          log.project.name,
-          log.taskType,
-          log.topic,
+          log.user?.name || '—',
+          log.client?.name || '—',
+          log.project?.name || '—',
+          log.taskType || '—',
+          log.topic || '—',
           Math.round((log.timeSpent / 60) * 10) / 10,
-          log.priority
+          log.priority || '—'
         ]);
         if (index % 2 === 0) {
           row.eachCell(cell => {
@@ -191,11 +191,11 @@ export async function GET(req) {
           
           const row = [
             idx + 1,
-            log.user.name.substring(0, 18),
-            log.client.name.substring(0, 15),
-            log.taskType,
+            (log.user?.name || '').substring(0, 18),
+            (log.client?.name || '').substring(0, 15),
+            log.taskType || '',
             `${Math.round((log.timeSpent / 60) * 10) / 10}h`,
-            log.topic.substring(0, 22)
+            (log.topic || '').substring(0, 22)
           ];
 
           row.forEach((val, i) => {

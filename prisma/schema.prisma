@@ -32,6 +32,7 @@ model User {
   createdPasswords PasswordRecord[]     @relation("CreatedPasswords")
   passwordAccess   PasswordUserAccess[]
   passwordLogs     PasswordLog[]
+  assetCheckouts   AssetCheckout[]
 }
 
 model Client {
@@ -186,4 +187,51 @@ model PasswordLog {
   user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   action     String         // VIEW, COPY_USERNAME, COPY_PASSWORD, REVEAL, OPEN_WEBSITE, UPDATE, GRANT, REVOKE
   timestamp  DateTime       @default(now())
+}
+
+model Asset {
+  id           String             @id @default(uuid())
+  name         String
+  category     String             // "PHOTOGRAPHY_VIDEO", "MISCELLANEOUS"
+  serialNumber String?
+  modelNumber  String?
+  location     String?
+  imageUrl     String?
+  status       String             @default("AVAILABLE") // "AVAILABLE", "CHECKED_OUT", "UNDER_MAINTENANCE", "RETIRED"
+  notes        String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  checkouts    AssetCheckout[]
+  maintenances AssetMaintenance[]
+}
+
+model AssetCheckout {
+  id               String    @id @default(uuid())
+  assetId          String
+  asset            Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  checkedOutAt     DateTime  @default(now())
+  expectedReturnAt DateTime?
+  returnedAt       DateTime?
+  status           String    @default("ACTIVE") // "ACTIVE", "RETURNED"
+  checkoutNotes    String?
+  returnNotes      String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model AssetMaintenance {
+  id         String    @id @default(uuid())
+  assetId    String
+  asset      Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  issue      String
+  cost       Float?
+  sentAt     DateTime  @default(now())
+  resolvedAt DateTime?
+  status     String    @default("UNDER_REPAIR") // "UNDER_REPAIR", "RESOLVED"
+  notes      String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 }

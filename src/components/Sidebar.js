@@ -16,7 +16,9 @@ import {
   BarChart2,
   History,
   Lock,
-  Database
+  Database,
+  Briefcase,
+  Archive
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -29,7 +31,22 @@ export default function Sidebar() {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setUser(JSON.parse(storedUser));
+      const parsed = JSON.parse(storedUser);
+      setUser(parsed);
+      
+      // Fetch latest profile details from server to keep local storage & avatar in sync
+      fetch('/api/auth/me')
+        .then(res => {
+          if (res.ok) return res.json();
+          throw new Error('Failed to fetch user info');
+        })
+        .then(freshUser => {
+          if (freshUser) {
+            setUser(freshUser);
+            localStorage.setItem('user', JSON.stringify(freshUser));
+          }
+        })
+        .catch(console.error);
       
       // Check if user has passwords
       fetch('/api/passwords')
@@ -75,6 +92,11 @@ export default function Sidebar() {
       name: 'Target OKRs',
       path: '/okrs',
       icon: <Target className="w-5 h-5" />
+    },
+    {
+      name: 'Asset Vault',
+      path: '/assets',
+      icon: <Briefcase className="w-5 h-5" />
     },
     {
       name: 'My Reports',
@@ -137,6 +159,11 @@ export default function Sidebar() {
         name: 'Database Backups',
         path: '/admin/backups',
         icon: <Database className="w-5 h-5" />
+      },
+      {
+        name: 'Asset Inventory',
+        path: '/admin/assets',
+        icon: <Archive className="w-5 h-5" />
       }
     );
   }

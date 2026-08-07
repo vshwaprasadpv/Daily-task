@@ -91,6 +91,12 @@ body {
   animation: spin 0.7s linear infinite;
 }
 
+/* Style select option dropdown list values to ensure visibility in dark mode */
+select option, option {
+  background-color: #111127 !important;
+  color: #ffffff !important;
+}
+
 /* Print Styles for PDF Export */
 @media print {
   body {

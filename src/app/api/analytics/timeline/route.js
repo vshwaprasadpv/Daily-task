@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import fs from 'fs';
+import path from 'path';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,6 +43,17 @@ export async function GET(req) {
       }
     });
 
+    // Load office holidays list
+    const holidaysFilePath = path.join(process.cwd(), 'src/data/holidays.json');
+    let holidays = [];
+    try {
+      if (fs.existsSync(holidaysFilePath)) {
+        holidays = JSON.parse(fs.readFileSync(holidaysFilePath, 'utf8'));
+      }
+    } catch (err) {
+      console.error('Failed to load holidays list:', err);
+    }
+
     // We want to generate a solid 30-day array so days with 0 hours are included
     const timeline = [];
     const now = new Date();
@@ -49,13 +62,15 @@ export async function GET(req) {
       d.setDate(d.getDate() - i);
       const dateString = d.toISOString().slice(0, 10);
       
-      const dayOfWeek = d.getDay(); // 0 is Sunday, 6 is Saturday
+      const dayOfWeek = d.getUTCDay(); // 0 is Sunday, 6 is Saturday
       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const isHoliday = holidays.includes(dateString);
 
       timeline.push({
         date: dateString,
-        day: d.getDate(),
+        day: d.getUTCDate(),
         isWeekend: isWeekend,
+        isHoliday: isHoliday,
         hours: 0,
       });
     }

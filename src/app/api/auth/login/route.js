@@ -52,7 +52,8 @@ export async function POST(req) {
         email: user.email,
         role: user.role,
         name: user.name,
-        department: user.department
+        department: user.department,
+        profilePictureUrl: user.profilePictureUrl
       }
     });
 

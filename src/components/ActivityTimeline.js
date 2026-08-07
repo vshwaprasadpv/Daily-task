@@ -4,40 +4,50 @@ import {
 } from 'recharts';
 import { Calendar } from 'lucide-react';
 
-// Custom dot to make weekends red
+// Custom dot to make weekends red, holidays yellow
 const CustomDot = (props) => {
   const { cx, cy, payload } = props;
-  const isWeekend = payload.isWeekend;
+  const isWeekend = payload?.isWeekend;
+  const isHoliday = payload?.isHoliday;
   
   if (!cx || !cy) return null;
+
+  let strokeColor = "#6366f1"; // Default purple
+  if (isWeekend) strokeColor = "#ef4444"; // Red for weekend
+  if (isHoliday) strokeColor = "#fbbf24"; // Yellow for holidays
 
   return (
     <circle 
       cx={cx} 
       cy={cy} 
       r={4} 
-      stroke={isWeekend ? "#ef4444" : "#6366f1"} 
+      stroke={strokeColor} 
       strokeWidth={2} 
       fill="#1e1e2d" 
     />
   );
 };
 
-// Custom tick to make weekend labels red
+// Custom tick to make weekend labels red, holidays yellow
 const CustomTick = (props) => {
   const { x, y, payload, data } = props;
-  const tickData = data.find(d => d.day === payload.value);
+  const tickData = data.find(d => d.date === payload.value);
   const isWeekend = tickData?.isWeekend;
+  const isHoliday = tickData?.isHoliday;
+
+  let fill = "#9ca3af"; // Default gray
+  if (isWeekend) fill = "#ef4444"; // Red for weekend
+  if (isHoliday) fill = "#fbbf24"; // Yellow for holidays
 
   return (
     <text 
       x={x} 
       y={y + 15} 
       textAnchor="middle" 
-      fill={isWeekend ? "#ef4444" : "#9ca3af"} 
-      fontSize={12}
+      fill={fill} 
+      fontSize={10}
     >
-      {payload.value}
+      {tickData ? parseInt(tickData.date.split('-')[2], 10) : payload.value}
     </text>
   );
 };
@@ -46,7 +56,7 @@ const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     const dataPoint = payload[0].payload;
     return (
-      <div className="bg-[#1e1e2d] border border-gray-800 p-3 rounded-lg shadow-xl">
+      <div className="bg-[#1e1e2d] border border-gray-800 p-3 rounded-lg shadow-xl text-xs">
         <p className="text-gray-300 font-medium mb-1">
           {new Date(dataPoint.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
         </p>
@@ -54,7 +64,10 @@ const CustomTooltip = ({ active, payload, label }) => {
           {dataPoint.hours} Hours Worked
         </p>
         {dataPoint.isWeekend && (
-           <p className="text-red-500 text-xs mt-1 font-semibold">Weekend</p>
+           <p className="text-red-500 font-semibold mt-1">Weekend</p>
+        )}
+        {dataPoint.isHoliday && (
+           <p className="text-yellow-500 font-semibold mt-0.5">Office Holiday</p>
         )}
       </div>
     );
@@ -107,7 +120,7 @@ export default function ActivityTimeline({ employeeId = 'all' }) {
           >
             <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={true} horizontal={false} opacity={0.3} />
             <XAxis 
-              dataKey="day" 
+              dataKey="date" 
               tick={(props) => <CustomTick {...props} data={data} />} 
               axisLine={{ stroke: '#374151' }}
               tickLine={false}

@@ -11,7 +11,9 @@ import {
   User, 
   Briefcase,
   TrendingUp,
-  RefreshCw
+  RefreshCw,
+  Calendar,
+  Trash2
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend 
@@ -23,6 +25,11 @@ export default function AdminLiveDashboard() {
   const [user, setUser] = useState(null);
   const [data, setData] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(new Date());
+  
+  // Holidays States
+  const [holidays, setHolidays] = useState([]);
+  const [newHolidayDate, setNewHolidayDate] = useState('');
+  const [timelineKey, setTimelineKey] = useState(0);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -60,6 +67,61 @@ export default function AdminLiveDashboard() {
       console.error('Failed to fetch live data:', err);
     }
   };
+
+  const fetchHolidays = async () => {
+    try {
+      const res = await fetch('/api/analytics/holidays');
+      if (res.ok) {
+        const json = await res.json();
+        setHolidays(json);
+      }
+    } catch (err) {
+      console.error('Failed to fetch holidays:', err);
+    }
+  };
+
+  const handleAddHoliday = async (e) => {
+    e.preventDefault();
+    if (!newHolidayDate) return;
+    try {
+      const res = await fetch('/api/analytics/holidays', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: newHolidayDate })
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setHolidays(json.holidays);
+        setNewHolidayDate('');
+        setTimelineKey(prev => prev + 1); // Remount/refresh timeline chart!
+      }
+    } catch (err) {
+      console.error('Failed to add holiday:', err);
+    }
+  };
+
+  const handleDeleteHoliday = async (date) => {
+    try {
+      const res = await fetch('/api/analytics/holidays', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date })
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setHolidays(json.holidays);
+        setTimelineKey(prev => prev + 1); // Remount/refresh timeline chart!
+      }
+    } catch (err) {
+      console.error('Failed to delete holiday:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchHolidays();
+    }
+  }, [user]);
 
   if (!user || !data) {
     return (
@@ -99,7 +161,7 @@ export default function AdminLiveDashboard() {
         <div className="p-8 space-y-6">
           
           <div className="w-full mb-8">
-            <ActivityTimeline employeeId="all" />
+            <ActivityTimeline key={timelineKey} employeeId="all" />
           </div>
 
           {/* Live Overview Cards */}
@@ -211,6 +273,52 @@ export default function AdminLiveDashboard() {
                 ))}
               </div>
             </div>
+            
+            {/* Manage Office Holidays Card */}
+            <div className="p-6 rounded-2xl glass-panel bg-[var(--glass-bg)] border-[var(--glass-border)] flex flex-col mt-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Calendar className="w-5 h-5 text-yellow-400" />
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider">Office Holidays</h3>
+              </div>
+              
+              <form onSubmit={handleAddHoliday} className="flex gap-2 mb-4 text-xs">
+                <input 
+                  type="date"
+                  value={newHolidayDate}
+                  onChange={(e) => setNewHolidayDate(e.target.value)}
+                  className="flex-1 bg-[rgba(255,255,255,0.03)] border border-[var(--glass-border)] rounded-xl py-1.5 px-3 text-white focus:outline-none focus:border-yellow-500"
+                />
+                <button
+                  type="submit"
+                  className="bg-yellow-600 hover:bg-yellow-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-xl transition-all cursor-pointer"
+                >
+                  Add
+                </button>
+              </form>
+
+              <div className="max-h-[180px] overflow-y-auto space-y-2 pr-2 scrollbar text-[11px]">
+                {holidays.length === 0 ? (
+                  <p className="text-[10px] text-[var(--text-muted)] italic">No holidays configured.</p>
+                ) : (
+                  holidays.map((date) => {
+                    const holidayDate = new Date(date);
+                    const formatted = holidayDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+                    return (
+                      <div key={date} className="flex items-center justify-between p-2 rounded-lg bg-[rgba(255,255,255,0.01)] border border-[var(--glass-border)]">
+                        <span className="text-white font-medium">{formatted}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteHoliday(date)}
+                          className="text-[var(--text-muted)] hover:text-red-400 transition-colors p-1"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
 
           </div>
 
@@ -219,7 +327,7 @@ export default function AdminLiveDashboard() {
             <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-6">Live Department Comparison</h3>
             <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.charts.departmentComparison} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                <BarChart data={data.departmentComparison} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                   <XAxis dataKey="name" stroke="rgba(255,255,255,0.3)" fontSize={10} />
                   <YAxis stroke="rgba(255,255,255,0.3)" fontSize={10} allowDecimals={false} />

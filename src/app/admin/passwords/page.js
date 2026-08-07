@@ -35,9 +35,15 @@ export default function AdminPasswordManager() {
     'ADMIN',
     'TEAM_LEAD',
     'GRAPHIC_DESIGNER',
-    'UI_UX_DESIGNER',
+    'UI_DESIGNER',
     'VIDEO_EDITOR',
+    'MOTION_DESIGNER',
     'CONTENT_WRITER',
+    'SOCIAL_MEDIA_EXECUTIVE',
+    'SOCIAL_MEDIA_MANAGER',
+    'WEB_DEVELOPER',
+    'SEO_EXECUTIVE',
+    'SEO_MANAGER',
     'MARKETING_EXECUTIVE'
   ];
 

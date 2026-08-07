@@ -14,8 +14,10 @@ import {
   Calendar,
   Users,
   Award,
-  RotateCcw
+  RotateCcw,
+  Search
 } from 'lucide-react';
+import { useMemo } from 'react';
 
 export default function AdminOkrs() {
   const router = useRouter();
@@ -23,6 +25,24 @@ export default function AdminOkrs() {
   const [okrs, setOkrs] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Filters State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [employeeFilter, setEmployeeFilter] = useState('all');
+
+  const filteredOkrs = useMemo(() => {
+    return okrs.filter(okr => {
+      const matchesSearch = searchQuery.trim() === '' || 
+        (okr.user?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (okr.objective || '').toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesStatus = statusFilter === 'all' || okr.status === statusFilter;
+      const matchesEmployee = employeeFilter === 'all' || okr.userId === employeeFilter;
+
+      return matchesSearch && matchesStatus && matchesEmployee;
+    });
+  }, [okrs, searchQuery, statusFilter, employeeFilter]);
 
   // Modal State
   const [showModal, setShowModal] = useState(false);
@@ -248,6 +268,40 @@ export default function AdminOkrs() {
                   <h3 className="text-xs font-bold text-white uppercase tracking-wider">Target OKR Performance Ledger</h3>
                 </div>
 
+                {/* Search & Filters */}
+                <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
+                    <input 
+                      type="text" 
+                      placeholder="Search employee or objective..." 
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full bg-[rgba(255,255,255,0.03)] border border-[var(--glass-border)] rounded-xl py-2 pl-9 pr-4 text-xs text-white focus:outline-none focus:border-[var(--primary-light)]"
+                    />
+                  </div>
+                  
+                  <select 
+                    value={employeeFilter}
+                    onChange={(e) => setEmployeeFilter(e.target.value)}
+                    className="bg-[#111127] border border-[var(--glass-border)] rounded-xl py-2 px-3 text-xs text-white focus:outline-none focus:border-[var(--primary-light)]"
+                  >
+                    <option value="all">All Employees</option>
+                    {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                  </select>
+
+                  <select 
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="bg-[#111127] border border-[var(--glass-border)] rounded-xl py-2 px-3 text-xs text-white focus:outline-none focus:border-[var(--primary-light)]"
+                  >
+                    <option value="all">All Statuses</option>
+                    <option value="PENDING">Pending</option>
+                    <option value="IN_PROGRESS">In Progress</option>
+                    <option value="COMPLETED">Completed</option>
+                  </select>
+                </div>
+
                 <div className="overflow-x-auto rounded-xl border border-[var(--glass-border)]">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
@@ -261,12 +315,12 @@ export default function AdminOkrs() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--glass-border)]">
-                      {okrs.length === 0 ? (
+                      {filteredOkrs.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="text-center p-8 text-[var(--text-muted)]">No OKRs created yet. Click "Create OKR" above to assign your first strategic target.</td>
+                          <td colSpan={6} className="text-center p-8 text-[var(--text-muted)]">No OKRs match your filters.</td>
                         </tr>
                       ) : (
-                        okrs.map(okr => (
+                        filteredOkrs.map(okr => (
                           <tr key={okr.id} className="hover:bg-[rgba(255,255,255,0.015)] transition-all">
                             <td className="p-4 font-bold text-white">{okr.user.name}</td>
                             <td className="p-4 max-w-[280px]">
