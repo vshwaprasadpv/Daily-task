@@ -406,8 +406,24 @@ function WorkHistoryContent() {
                                   <div className="text-[9px] text-[var(--text-muted)]">{new Date(log.createdAt).toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'})}</div>
                                 </td>
                                 <td className="p-3.5">
-                                  <div className="font-bold text-white">{log.client?.name}</div>
-                                  {log.project && <div className="text-[9px] text-[var(--text-secondary)]">{log.project.name}</div>}
+                                  <div className="flex items-center gap-2">
+                                    {log.client?.logoUrl ? (
+                                      <img 
+                                        src={log.client.logoUrl} 
+                                        alt={log.client.name} 
+                                        className="w-5 h-5 rounded-md object-contain bg-white/10 p-0.5"
+                                        onError={(e) => { e.target.style.display = 'none'; }}
+                                      />
+                                    ) : (
+                                      <div className="w-5 h-5 rounded-md bg-[var(--primary)] flex items-center justify-center text-[8px] font-black text-white">
+                                        {log.client?.name ? log.client.name.charAt(0).toUpperCase() : 'C'}
+                                      </div>
+                                    )}
+                                    <div>
+                                      <div className="font-bold text-white leading-tight">{log.client?.name}</div>
+                                      {log.project && <div className="text-[9px] text-[var(--text-muted)] mt-0.5">{log.project.name}</div>}
+                                    </div>
+                                  </div>
                                 </td>
                                 <td className="p-3.5">
                                   <span className="bg-[rgba(99,102,241,0.1)] text-[var(--primary-light)] px-2 py-1 rounded border border-[rgba(99,102,241,0.2)] text-[9px] font-bold whitespace-nowrap">
@@ -564,7 +580,21 @@ function WorkHistoryContent() {
                     </li>
                     <li>
                       <span className="block text-[9px] text-[var(--text-muted)] uppercase tracking-wider">Client</span>
-                      <span className="block text-xs font-bold text-white">{selectedLog.client?.name}</span>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {selectedLog.client?.logoUrl ? (
+                          <img 
+                            src={selectedLog.client.logoUrl} 
+                            alt={selectedLog.client.name} 
+                            className="w-5 h-5 rounded-md object-contain bg-white/10 p-0.5"
+                            onError={(e) => { e.target.style.display = 'none'; }}
+                          />
+                        ) : (
+                          <div className="w-5 h-5 rounded-md bg-[var(--primary)] flex items-center justify-center text-[8px] font-black text-white">
+                            {selectedLog.client?.name ? selectedLog.client.name.charAt(0).toUpperCase() : 'C'}
+                          </div>
+                        )}
+                        <span className="text-xs font-bold text-white">{selectedLog.client?.name}</span>
+                      </div>
                     </li>
                     <li>
                       <span className="block text-[9px] text-[var(--text-muted)] uppercase tracking-wider">Project</span>
