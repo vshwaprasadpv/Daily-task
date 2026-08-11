@@ -95,6 +95,8 @@ export async function POST(req) {
       timeSpent,
       priority,
       attachmentUrl,
+      finalFile,
+      workFile,
       notes
     } = await req.json();
 
@@ -115,6 +117,8 @@ export async function POST(req) {
         timeSpent: timeSpent ? parseInt(timeSpent, 10) : 0,
         priority: priority || 'MEDIUM',
         attachmentUrl: attachmentUrl || null,
+        finalFile: finalFile || null,
+        workFile: workFile || null,
         notes: notes || null
       },
       include: {

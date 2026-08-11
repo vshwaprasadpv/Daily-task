@@ -12,7 +12,11 @@ import {
   CheckCircle,
   TrendingUp,
   Target,
-  Search
+  Search,
+  Upload,
+  Eye,
+  FileText,
+  X
 } from 'lucide-react';
 
 export default function UserDashboard() {
@@ -48,9 +52,39 @@ export default function UserDashboard() {
   const [minutes, setMinutes] = useState('');
   const [priority, setPriority] = useState('MEDIUM');
   const [attachmentUrl, setAttachmentUrl] = useState('');
+  const [finalFile, setFinalFile] = useState('');
+  const [workFile, setWorkFile] = useState('');
+  const [finalFileError, setFinalFileError] = useState('');
+  const [workFileError, setWorkFileError] = useState('');
+  const [previewFileUrl, setPreviewFileUrl] = useState(null);
   const [notes, setNotes] = useState('');
 
   const [editingLogId, setEditingLogId] = useState(null);
+
+  const handleFileUpload = async (file, setUrl, setError) => {
+    if (!file) return;
+    setError('');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Upload failed');
+      }
+      
+      const data = await res.json();
+      setUrl(data.url);
+    } catch (err) {
+      console.error(err);
+      setError(err.message);
+    }
+  };
 
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState('');
@@ -122,6 +156,8 @@ export default function UserDashboard() {
     setMinutes(mins > 0 ? mins : '');
     setPriority(log.priority);
     setAttachmentUrl(log.attachmentUrl || '');
+    setFinalFile(log.finalFile || '');
+    setWorkFile(log.workFile || '');
     setNotes(log.notes || '');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -157,6 +193,8 @@ export default function UserDashboard() {
           timeSpent: totalMinutes,
           priority,
           attachmentUrl,
+          finalFile,
+          workFile,
           notes
         })
       });
@@ -174,6 +212,8 @@ export default function UserDashboard() {
       setMinutes('');
       setNotes('');
       setAttachmentUrl('');
+      setFinalFile('');
+      setWorkFile('');
 
       // Refresh listings
       fetchData(user.id);
@@ -453,17 +493,139 @@ export default function UserDashboard() {
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">Creative Attachment Link</label>
-                    <div className="relative">
-                      <Paperclip className="absolute left-3.5 top-3 w-4 h-4 text-[var(--text-muted)]" />
-                      <input 
-                        type="url"
-                        placeholder="Figma, Drive or Frame.io URL"
-                        value={attachmentUrl}
-                        onChange={e => setAttachmentUrl(e.target.value)}
-                        className="w-full bg-[rgba(255,255,255,0.03)] border border-[var(--glass-border)] rounded-xl py-2.5 pl-10 pr-4 text-xs text-white focus:outline-none focus:border-[var(--primary-light)]"
-                      />
+                  <div className="space-y-4 pt-2 border-t border-[rgba(255,255,255,0.05)]">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">Creative Attachment Link (Optional)</label>
+                      <div className="relative">
+                        <Paperclip className="absolute left-3.5 top-3 w-4 h-4 text-[var(--text-muted)]" />
+                        <input 
+                          type="url"
+                          placeholder="Figma, Drive or Frame.io URL"
+                          value={attachmentUrl}
+                          onChange={e => setAttachmentUrl(e.target.value)}
+                          className="w-full bg-[rgba(255,255,255,0.03)] border border-[var(--glass-border)] rounded-xl py-2.5 pl-10 pr-4 text-xs text-white focus:outline-none focus:border-[var(--primary-light)]"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Final File Upload */}
+                      <div className="space-y-1.5 bg-black/10 border border-[var(--glass-border)] rounded-xl p-3.5">
+                        <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block">Final File (Delivered Asset)</label>
+                        <div className="flex gap-2 items-center">
+                          <input 
+                            type="text"
+                            placeholder="File path or URL"
+                            value={finalFile}
+                            onChange={e => setFinalFile(e.target.value)}
+                            className="flex-1 bg-[rgba(255,255,255,0.03)] border border-[var(--glass-border)] rounded-lg py-1.5 px-3 text-[10px] text-white focus:outline-none focus:border-[var(--primary-light)]"
+                          />
+                          <label className="bg-[var(--primary)] hover:bg-[var(--primary-light)] text-white text-[10px] font-bold py-2 px-3 rounded-lg cursor-pointer transition-all flex items-center gap-1 shrink-0">
+                            <Upload className="w-3 h-3" /> Upload
+                            <input 
+                              type="file" 
+                              className="hidden" 
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  await handleFileUpload(file, setFinalFile, setFinalFileError);
+                                }
+                              }}
+                            />
+                          </label>
+                        </div>
+                        {finalFileError && <p className="text-[10px] text-red-400 font-semibold">{finalFileError}</p>}
+                        
+                        {finalFile && (
+                          <div className="flex items-center justify-between gap-3 mt-2 bg-white/5 border border-[var(--glass-border)] rounded-lg p-2">
+                            <div className="flex items-center gap-2 truncate">
+                              {finalFile.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || finalFile.startsWith('data:image') ? (
+                                <img src={finalFile} alt="Preview" className="w-8 h-8 rounded object-cover bg-white/10" />
+                              ) : (
+                                <FileText className="w-5 h-5 text-[var(--primary-light)]" />
+                              )}
+                              <span className="text-[10px] text-[var(--text-secondary)] truncate max-w-[120px]">{finalFile}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button 
+                                type="button" 
+                                onClick={() => setPreviewFileUrl(finalFile)}
+                                className="p-1 rounded bg-white/5 hover:bg-white/10 text-white transition-all cursor-pointer"
+                                title="Preview File"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+                              <button 
+                                type="button" 
+                                onClick={() => setFinalFile('')}
+                                className="p-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-all cursor-pointer"
+                                title="Remove File"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Work File Upload */}
+                      <div className="space-y-1.5 bg-black/10 border border-[var(--glass-border)] rounded-xl p-3.5">
+                        <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block">Work File (Project/Raw File)</label>
+                        <div className="flex gap-2 items-center">
+                          <input 
+                            type="text"
+                            placeholder="File path or URL"
+                            value={workFile}
+                            onChange={e => setWorkFile(e.target.value)}
+                            className="flex-1 bg-[rgba(255,255,255,0.03)] border border-[var(--glass-border)] rounded-lg py-1.5 px-3 text-[10px] text-white focus:outline-none focus:border-[var(--primary-light)]"
+                          />
+                          <label className="bg-[var(--secondary)] hover:bg-[var(--secondary-light)] text-white text-[10px] font-bold py-2 px-3 rounded-lg cursor-pointer transition-all flex items-center gap-1 shrink-0">
+                            <Upload className="w-3 h-3" /> Upload
+                            <input 
+                              type="file" 
+                              className="hidden" 
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  await handleFileUpload(file, setWorkFile, setWorkFileError);
+                                }
+                              }}
+                            />
+                          </label>
+                        </div>
+                        {workFileError && <p className="text-[10px] text-red-400 font-semibold">{workFileError}</p>}
+
+                        {workFile && (
+                          <div className="flex items-center justify-between gap-3 mt-2 bg-white/5 border border-[var(--glass-border)] rounded-lg p-2">
+                            <div className="flex items-center gap-2 truncate">
+                              {workFile.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || workFile.startsWith('data:image') ? (
+                                <img src={workFile} alt="Preview" className="w-8 h-8 rounded object-cover bg-white/10" />
+                              ) : (
+                                <FileText className="w-5 h-5 text-[var(--secondary)]" />
+                              )}
+                              <span className="text-[10px] text-[var(--text-secondary)] truncate max-w-[120px]">{workFile}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button 
+                                type="button" 
+                                onClick={() => setPreviewFileUrl(workFile)}
+                                className="p-1 rounded bg-white/5 hover:bg-white/10 text-white transition-all cursor-pointer"
+                                title="Preview File"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+                              <button 
+                                type="button" 
+                                onClick={() => setWorkFile('')}
+                                className="p-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-all cursor-pointer"
+                                title="Remove File"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -636,6 +798,44 @@ export default function UserDashboard() {
           </div>
         </div>
       </main>
+      {/* Lightbox File Preview Modal */}
+      {previewFileUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
+          <div className="relative max-w-4xl w-full flex flex-col items-center justify-center">
+            <button 
+              onClick={() => setPreviewFileUrl(null)}
+              className="absolute -top-12 right-0 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <div className="w-full bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-2xl p-6 flex flex-col items-center justify-center min-h-[300px]">
+              {previewFileUrl.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || previewFileUrl.startsWith('data:image') ? (
+                <img 
+                  src={previewFileUrl} 
+                  alt="Work File Preview" 
+                  className="max-w-full max-h-[70vh] object-contain rounded-xl shadow-2xl border border-white/10" 
+                />
+              ) : (
+                <div className="flex flex-col items-center gap-4 text-center p-8">
+                  <FileText className="w-20 h-20 text-[var(--primary-light)] animate-pulse" />
+                  <div>
+                    <h4 className="text-sm font-bold text-white mb-1">Non-Image Document Preview</h4>
+                    <p className="text-xs text-[var(--text-secondary)] max-w-md truncate">{previewFileUrl}</p>
+                  </div>
+                  <a 
+                    href={previewFileUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] text-white text-xs font-bold py-2.5 px-6 rounded-xl hover:opacity-95 transition-all"
+                  >
+                    Open / Download File
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

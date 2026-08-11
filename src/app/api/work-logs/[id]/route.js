@@ -22,6 +22,8 @@ export async function PUT(req, { params }) {
       timeSpent,
       priority,
       attachmentUrl,
+      finalFile,
+      workFile,
       notes
     } = await req.json();
 
@@ -51,6 +53,8 @@ export async function PUT(req, { params }) {
         timeSpent: timeSpent ? parseInt(timeSpent, 10) : 0,
         priority: priority || 'MEDIUM',
         attachmentUrl: attachmentUrl || null,
+        finalFile: finalFile || null,
+        workFile: workFile || null,
         notes: notes || null
       },
       include: {

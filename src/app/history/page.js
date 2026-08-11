@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { 
-  History, Search, Filter, X, Eye, Calendar, Clock, 
+  History, Search, Filter, X, Eye, Calendar, Clock, FileText,
   Briefcase, CheckCircle, TrendingUp, Download, Link as LinkIcon
 } from 'lucide-react';
 
@@ -33,6 +33,7 @@ function WorkHistoryContent() {
 
   // Modal State
   const [selectedLog, setSelectedLog] = useState(null);
+  const [previewFileUrl, setPreviewFileUrl] = useState(null);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -659,11 +660,125 @@ function WorkHistoryContent() {
                 </div>
               )}
 
+              {(selectedLog.finalFile || selectedLog.workFile) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {selectedLog.finalFile && (
+                    <div>
+                      <h4 className="text-[10px] font-bold text-[var(--primary-light)] uppercase tracking-wider mb-2">Final File (Delivered Asset)</h4>
+                      <div className="flex items-center justify-between gap-3 bg-[rgba(255,255,255,0.02)] p-3 rounded-xl border border-[var(--glass-border)]">
+                        <div className="flex items-center gap-2 truncate">
+                          {selectedLog.finalFile.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || selectedLog.finalFile.startsWith('data:image') ? (
+                            <img src={selectedLog.finalFile} alt="Final File" className="w-8 h-8 rounded object-cover bg-white/10" />
+                          ) : (
+                            <FileText className="w-5 h-5 text-[var(--primary-light)]" />
+                          )}
+                          <span className="text-xs font-bold text-white truncate max-w-[120px]">{selectedLog.finalFile.split('/').pop()}</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button 
+                            type="button" 
+                            onClick={() => setPreviewFileUrl(selectedLog.finalFile)}
+                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all cursor-pointer"
+                            title="Preview File"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <a 
+                            href={selectedLog.finalFile}
+                            download
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all"
+                            title="Download File"
+                          >
+                            <Download className="w-4 h-4" />
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedLog.workFile && (
+                    <div>
+                      <h4 className="text-[10px] font-bold text-[var(--primary-light)] uppercase tracking-wider mb-2">Work File (Project/Raw File)</h4>
+                      <div className="flex items-center justify-between gap-3 bg-[rgba(255,255,255,0.02)] p-3 rounded-xl border border-[var(--glass-border)]">
+                        <div className="flex items-center gap-2 truncate">
+                          {selectedLog.workFile.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || selectedLog.workFile.startsWith('data:image') ? (
+                            <img src={selectedLog.workFile} alt="Work File" className="w-8 h-8 rounded object-cover bg-white/10" />
+                          ) : (
+                            <FileText className="w-5 h-5 text-[var(--secondary)]" />
+                          )}
+                          <span className="text-xs font-bold text-white truncate max-w-[120px]">{selectedLog.workFile.split('/').pop()}</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button 
+                            type="button" 
+                            onClick={() => setPreviewFileUrl(selectedLog.workFile)}
+                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all cursor-pointer"
+                            title="Preview File"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <a 
+                            href={selectedLog.workFile}
+                            download
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all"
+                            title="Download File"
+                          >
+                            <Download className="w-4 h-4" />
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
             </div>
           </div>
         </div>
       )}
 
+      {/* Lightbox File Preview Modal */}
+      {previewFileUrl && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
+          <div className="relative max-w-4xl w-full flex flex-col items-center justify-center">
+            <button 
+              onClick={() => setPreviewFileUrl(null)}
+              className="absolute -top-12 right-0 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <div className="w-full bg-[rgba(12,12,25,0.95)] border border-[var(--glass-border)] rounded-2xl p-6 flex flex-col items-center justify-center min-h-[300px]">
+              {previewFileUrl.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || previewFileUrl.startsWith('data:image') ? (
+                <img 
+                  src={previewFileUrl} 
+                  alt="Work File Preview" 
+                  className="max-w-full max-h-[70vh] object-contain rounded-xl shadow-2xl border border-white/10" 
+                />
+              ) : (
+                <div className="flex flex-col items-center gap-4 text-center p-8">
+                  <FileText className="w-20 h-20 text-[var(--primary-light)] animate-pulse" />
+                  <div>
+                    <h4 className="text-sm font-bold text-white mb-1">Non-Image Document Preview</h4>
+                    <p className="text-xs text-[var(--text-secondary)] max-w-md truncate">{previewFileUrl}</p>
+                  </div>
+                  <a 
+                    href={previewFileUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] text-white text-xs font-bold py-2.5 px-6 rounded-xl hover:opacity-95 transition-all"
+                  >
+                    Open / Download File
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

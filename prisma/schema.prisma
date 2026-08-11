@@ -75,6 +75,8 @@ model WorkLog {
   timeSpent     Int       @default(0) // in minutes
   priority      String    @default("MEDIUM") // LOW, MEDIUM, HIGH
   attachmentUrl String?
+  finalFile     String?
+  workFile      String?
   notes         String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
