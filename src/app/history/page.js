@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { 
   History, Search, Filter, X, Eye, Calendar, Clock, FileText,
-  Briefcase, CheckCircle, TrendingUp, Download, Link as LinkIcon
+  Briefcase, CheckCircle, TrendingUp, Download, Link as LinkIcon,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 function WorkHistoryContent() {
@@ -33,7 +34,17 @@ function WorkHistoryContent() {
 
   // Modal State
   const [selectedLog, setSelectedLog] = useState(null);
-  const [previewFileUrl, setPreviewFileUrl] = useState(null);
+  const [previewFilesList, setPreviewFilesList] = useState([]);
+  const [previewFileIndex, setPreviewFileIndex] = useState(-1);
+  const triggerPreview = (fileUrl, list = []) => {
+    let files = Array.isArray(list) ? list : [list];
+    if (files.length === 0 && fileUrl) {
+      files = [fileUrl];
+    }
+    const idx = files.indexOf(fileUrl);
+    setPreviewFilesList(files);
+    setPreviewFileIndex(idx !== -1 ? idx : 0);
+  };
 
   const parseFiles = (val) => {
     if (!val) return [];
@@ -690,7 +701,7 @@ function WorkHistoryContent() {
                           <div className="flex items-center gap-2 shrink-0">
                             <button 
                               type="button" 
-                              onClick={() => setPreviewFileUrl(file)}
+                              onClick={() => triggerPreview(file, parseFiles(selectedLog.finalFile))}
                               className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all cursor-pointer"
                               title="Preview File"
                             >
@@ -728,7 +739,7 @@ function WorkHistoryContent() {
                           <div className="flex items-center gap-2 shrink-0">
                             <button 
                               type="button" 
-                              onClick={() => setPreviewFileUrl(file)}
+                              onClick={() => triggerPreview(file, parseFiles(selectedLog.workFile))}
                               className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all cursor-pointer"
                               title="Preview File"
                             >
@@ -758,43 +769,100 @@ function WorkHistoryContent() {
       )}
 
       {/* Lightbox File Preview Modal */}
-      {previewFileUrl && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
-          <div className="relative max-w-4xl w-full flex flex-col items-center justify-center">
-            <button 
-              onClick={() => setPreviewFileUrl(null)}
-              className="absolute -top-12 right-0 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer"
-            >
-              <X className="w-6 h-6" />
-            </button>
-            <div className="w-full bg-[rgba(12,12,25,0.95)] border border-[var(--glass-border)] rounded-2xl p-6 flex flex-col items-center justify-center min-h-[300px]">
-              {previewFileUrl.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || previewFileUrl.startsWith('data:image') ? (
-                <img 
-                  src={previewFileUrl} 
-                  alt="Work File Preview" 
-                  className="max-w-full max-h-[70vh] object-contain rounded-xl shadow-2xl border border-white/10" 
-                />
-              ) : (
-                <div className="flex flex-col items-center gap-4 text-center p-8">
-                  <FileText className="w-20 h-20 text-[var(--primary-light)] animate-pulse" />
-                  <div>
-                    <h4 className="text-sm font-bold text-white mb-1">Non-Image Document Preview</h4>
-                    <p className="text-xs text-[var(--text-secondary)] max-w-md truncate">{previewFileUrl}</p>
-                  </div>
-                  <a 
-                    href={previewFileUrl} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] text-white text-xs font-bold py-2.5 px-6 rounded-xl hover:opacity-95 transition-all"
+      {previewFileIndex !== -1 && previewFilesList.length > 0 && (() => {
+        const activeFile = previewFilesList[previewFileIndex];
+        const isImage = activeFile.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || activeFile.startsWith('data:image');
+        const isVideo = activeFile.match(/\.(mp4|mov|webm|m4v|ogg)$/i);
+        
+        const handlePrev = (e) => {
+          e.stopPropagation();
+          setPreviewFileIndex(prev => (prev - 1 + previewFilesList.length) % previewFilesList.length);
+        };
+
+        const handleNext = (e) => {
+          e.stopPropagation();
+          setPreviewFileIndex(prev => (prev + 1) % previewFilesList.length);
+        };
+
+        return (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
+            <div className="relative max-w-4xl w-full flex flex-col items-center justify-center">
+              
+              {/* Close Button */}
+              <button 
+                onClick={() => {
+                  setPreviewFilesList([]);
+                  setPreviewFileIndex(-1);
+                }}
+                className="absolute -top-12 right-0 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer z-50"
+              >
+                <X className="w-6 h-6" />
+              </button>
+
+              {/* Navigation Arrows */}
+              {previewFilesList.length > 1 && (
+                <>
+                  <button 
+                    onClick={handlePrev}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/50 hover:bg-black/80 text-white border border-white/10 transition-all cursor-pointer z-50"
+                    title="Previous Slide"
                   >
-                    Open / Download File
-                  </a>
+                    <ChevronLeft className="w-6 h-6" />
+                  </button>
+                  <button 
+                    onClick={handleNext}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/50 hover:bg-black/80 text-white border border-white/10 transition-all cursor-pointer z-50"
+                    title="Next Slide"
+                  >
+                    <ChevronRight className="w-6 h-6" />
+                  </button>
+                </>
+              )}
+
+              {/* Slide Counter Info */}
+              {previewFilesList.length > 1 && (
+                <div className="absolute -top-12 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-black/50 border border-white/10 text-white text-xs font-bold">
+                  File {previewFileIndex + 1} of {previewFilesList.length}
                 </div>
               )}
+
+              <div className="w-full bg-[rgba(12,12,25,0.95)] border border-[var(--glass-border)] rounded-2xl p-6 flex flex-col items-center justify-center min-h-[350px] relative">
+                {isImage ? (
+                  <img 
+                    src={activeFile} 
+                    alt="File Preview" 
+                    className="max-w-full max-h-[70vh] object-contain rounded-xl shadow-2xl border border-white/10" 
+                  />
+                ) : isVideo ? (
+                  <video 
+                    src={activeFile} 
+                    controls 
+                    autoPlay 
+                    loop 
+                    className="max-w-full max-h-[70vh] rounded-xl shadow-2xl border border-white/10" 
+                  />
+                ) : (
+                  <div className="flex flex-col items-center gap-4 text-center p-8">
+                    <FileText className="w-20 h-20 text-[var(--primary-light)] animate-pulse" />
+                    <div>
+                      <h4 className="text-sm font-bold text-white mb-1">Non-Image Document Preview</h4>
+                      <p className="text-xs text-[var(--text-secondary)] max-w-md truncate">{activeFile.split('/').pop()}</p>
+                    </div>
+                    <a 
+                      href={activeFile} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] text-white text-xs font-bold py-2.5 px-6 rounded-xl hover:opacity-95 transition-all"
+                    >
+                      Open / Download File
+                    </a>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
