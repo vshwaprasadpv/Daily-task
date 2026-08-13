@@ -54,8 +54,10 @@ export default function UserDashboard() {
   const [minutes, setMinutes] = useState('');
   const [priority, setPriority] = useState('MEDIUM');
   const [attachmentUrl, setAttachmentUrl] = useState('');
-  const [finalFile, setFinalFile] = useState('');
-  const [workFile, setWorkFile] = useState('');
+  const [finalFiles, setFinalFiles] = useState([]);
+  const [workFiles, setWorkFiles] = useState([]);
+  const [tempFinalUrl, setTempFinalUrl] = useState('');
+  const [tempWorkUrl, setTempWorkUrl] = useState('');
   const [finalFileError, setFinalFileError] = useState('');
   const [workFileError, setWorkFileError] = useState('');
   const [previewFileUrl, setPreviewFileUrl] = useState(null);
@@ -64,25 +66,42 @@ export default function UserDashboard() {
   const [editingLogId, setEditingLogId] = useState(null);
   const [selectedDetailLog, setSelectedDetailLog] = useState(null);
 
-  const handleFileUpload = async (file, setUrl, setError) => {
-    if (!file) return;
-    setError('');
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData
-      });
-      
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || 'Upload failed');
+  const parseFiles = (val) => {
+    if (!val) return [];
+    if (val.startsWith('[') && val.endsWith(']')) {
+      try {
+        return JSON.parse(val);
+      } catch (e) {
+        return [val];
       }
-      
-      const data = await res.json();
-      setUrl(data.url);
+    }
+    return [val];
+  };
+
+  const handleFileUpload = async (files, setFiles, setError) => {
+    if (!files || files.length === 0) return;
+    setError('');
+    const uploadedUrls = [];
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || `Upload failed for ${file.name}`);
+        }
+        
+        const data = await res.json();
+        uploadedUrls.push(data.url);
+      }
+      setFiles(prev => [...prev, ...uploadedUrls]);
     } catch (err) {
       console.error(err);
       setError(err.message);
@@ -159,8 +178,8 @@ export default function UserDashboard() {
     setMinutes(mins > 0 ? mins : '');
     setPriority(log.priority);
     setAttachmentUrl(log.attachmentUrl || '');
-    setFinalFile(log.finalFile || '');
-    setWorkFile(log.workFile || '');
+    setFinalFiles(parseFiles(log.finalFile));
+    setWorkFiles(parseFiles(log.workFile));
     setNotes(log.notes || '');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -196,8 +215,8 @@ export default function UserDashboard() {
           timeSpent: totalMinutes,
           priority,
           attachmentUrl,
-          finalFile,
-          workFile,
+          finalFile: JSON.stringify(finalFiles),
+          workFile: JSON.stringify(workFiles),
           notes
         })
       });
@@ -215,8 +234,8 @@ export default function UserDashboard() {
       setMinutes('');
       setNotes('');
       setAttachmentUrl('');
-      setFinalFile('');
-      setWorkFile('');
+      setFinalFiles([]);
+      setWorkFiles([]);
 
       // Refresh listings
       fetchData(user.id);
@@ -513,25 +532,39 @@ export default function UserDashboard() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {/* Final File Upload */}
-                      <div className="space-y-1.5 bg-black/10 border border-[var(--glass-border)] rounded-xl p-3.5">
-                        <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block">Final File (Delivered Asset)</label>
+                      <div className="space-y-2 bg-black/10 border border-[var(--glass-border)] rounded-xl p-3.5">
+                        <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block">Final Files (Delivered Assets)</label>
+                        
                         <div className="flex gap-2 items-center">
                           <input 
                             type="text"
-                            placeholder="File path or URL"
-                            value={finalFile}
-                            onChange={e => setFinalFile(e.target.value)}
+                            placeholder="Paste link and click + Add"
+                            value={tempFinalUrl}
+                            onChange={e => setTempFinalUrl(e.target.value)}
                             className="flex-1 bg-[rgba(255,255,255,0.03)] border border-[var(--glass-border)] rounded-lg py-1.5 px-3 text-[10px] text-white focus:outline-none focus:border-[var(--primary-light)]"
                           />
+                          {tempFinalUrl && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFinalFiles(prev => [...prev, tempFinalUrl]);
+                                setTempFinalUrl('');
+                              }}
+                              className="bg-[rgba(255,255,255,0.05)] border border-[var(--glass-border)] hover:bg-[rgba(255,255,255,0.1)] text-white text-[10px] font-bold py-2 px-2.5 rounded-lg cursor-pointer transition-all shrink-0"
+                            >
+                              + Add
+                            </button>
+                          )}
                           <label className="bg-[var(--primary)] hover:bg-[var(--primary-light)] text-white text-[10px] font-bold py-2 px-3 rounded-lg cursor-pointer transition-all flex items-center gap-1 shrink-0">
                             <Upload className="w-3 h-3" /> Upload
                             <input 
                               type="file" 
+                              multiple
                               className="hidden" 
                               onChange={async (e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  await handleFileUpload(file, setFinalFile, setFinalFileError);
+                                const files = e.target.files;
+                                if (files && files.length > 0) {
+                                  await handleFileUpload(files, setFinalFiles, setFinalFileError);
                                 }
                               }}
                             />
@@ -539,58 +572,76 @@ export default function UserDashboard() {
                         </div>
                         {finalFileError && <p className="text-[10px] text-red-400 font-semibold">{finalFileError}</p>}
                         
-                        {finalFile && (
-                          <div className="flex items-center justify-between gap-3 mt-2 bg-white/5 border border-[var(--glass-border)] rounded-lg p-2">
-                            <div className="flex items-center gap-2 truncate">
-                              {finalFile.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || finalFile.startsWith('data:image') ? (
-                                <img src={finalFile} alt="Preview" className="w-8 h-8 rounded object-cover bg-white/10" />
-                              ) : (
-                                <FileText className="w-5 h-5 text-[var(--primary-light)]" />
-                              )}
-                              <span className="text-[10px] text-[var(--text-secondary)] truncate max-w-[120px]">{finalFile}</span>
-                            </div>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <button 
-                                type="button" 
-                                onClick={() => setPreviewFileUrl(finalFile)}
-                                className="p-1 rounded bg-white/5 hover:bg-white/10 text-white transition-all cursor-pointer"
-                                title="Preview File"
-                              >
-                                <Eye className="w-3.5 h-3.5" />
-                              </button>
-                              <button 
-                                type="button" 
-                                onClick={() => setFinalFile('')}
-                                className="p-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-all cursor-pointer"
-                                title="Remove File"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
+                        {finalFiles.length > 0 && (
+                          <div className="space-y-1.5 mt-2 max-h-[120px] overflow-y-auto pr-1">
+                            {finalFiles.map((file, idx) => (
+                              <div key={idx} className="flex items-center justify-between gap-3 bg-white/5 border border-[var(--glass-border)] rounded-lg p-2">
+                                <div className="flex items-center gap-2 truncate">
+                                  {file.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || file.startsWith('data:image') ? (
+                                    <img src={file} alt="Preview" className="w-8 h-8 rounded object-cover bg-white/10" />
+                                  ) : (
+                                    <FileText className="w-5 h-5 text-[var(--primary-light)]" />
+                                  )}
+                                  <span className="text-[10px] text-[var(--text-secondary)] truncate max-w-[120px]">{file.split('/').pop()}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <button 
+                                    type="button" 
+                                    onClick={() => setPreviewFileUrl(file)}
+                                    className="p-1 rounded bg-white/5 hover:bg-white/10 text-white transition-all cursor-pointer"
+                                    title="Preview File"
+                                  >
+                                    <Eye className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button 
+                                    type="button" 
+                                    onClick={() => setFinalFiles(prev => prev.filter((_, i) => i !== idx))}
+                                    className="p-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-all cursor-pointer"
+                                    title="Remove File"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         )}
                       </div>
 
                       {/* Work File Upload */}
-                      <div className="space-y-1.5 bg-black/10 border border-[var(--glass-border)] rounded-xl p-3.5">
-                        <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block">Work File (Project/Raw File)</label>
+                      <div className="space-y-2 bg-black/10 border border-[var(--glass-border)] rounded-xl p-3.5">
+                        <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block">Work Files (Project/Raw Files)</label>
+                        
                         <div className="flex gap-2 items-center">
                           <input 
                             type="text"
-                            placeholder="File path or URL"
-                            value={workFile}
-                            onChange={e => setWorkFile(e.target.value)}
+                            placeholder="Paste link and click + Add"
+                            value={tempWorkUrl}
+                            onChange={e => setTempWorkUrl(e.target.value)}
                             className="flex-1 bg-[rgba(255,255,255,0.03)] border border-[var(--glass-border)] rounded-lg py-1.5 px-3 text-[10px] text-white focus:outline-none focus:border-[var(--primary-light)]"
                           />
+                          {tempWorkUrl && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setWorkFiles(prev => [...prev, tempWorkUrl]);
+                                setTempWorkUrl('');
+                              }}
+                              className="bg-[rgba(255,255,255,0.05)] border border-[var(--glass-border)] hover:bg-[rgba(255,255,255,0.1)] text-white text-[10px] font-bold py-2 px-2.5 rounded-lg cursor-pointer transition-all shrink-0"
+                            >
+                              + Add
+                            </button>
+                          )}
                           <label className="bg-[var(--secondary)] hover:bg-[var(--secondary-light)] text-white text-[10px] font-bold py-2 px-3 rounded-lg cursor-pointer transition-all flex items-center gap-1 shrink-0">
                             <Upload className="w-3 h-3" /> Upload
                             <input 
                               type="file" 
+                              multiple
                               className="hidden" 
                               onChange={async (e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  await handleFileUpload(file, setWorkFile, setWorkFileError);
+                                const files = e.target.files;
+                                if (files && files.length > 0) {
+                                  await handleFileUpload(files, setWorkFiles, setWorkFileError);
                                 }
                               }}
                             />
@@ -598,34 +649,38 @@ export default function UserDashboard() {
                         </div>
                         {workFileError && <p className="text-[10px] text-red-400 font-semibold">{workFileError}</p>}
 
-                        {workFile && (
-                          <div className="flex items-center justify-between gap-3 mt-2 bg-white/5 border border-[var(--glass-border)] rounded-lg p-2">
-                            <div className="flex items-center gap-2 truncate">
-                              {workFile.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || workFile.startsWith('data:image') ? (
-                                <img src={workFile} alt="Preview" className="w-8 h-8 rounded object-cover bg-white/10" />
-                              ) : (
-                                <FileText className="w-5 h-5 text-[var(--secondary)]" />
-                              )}
-                              <span className="text-[10px] text-[var(--text-secondary)] truncate max-w-[120px]">{workFile}</span>
-                            </div>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <button 
-                                type="button" 
-                                onClick={() => setPreviewFileUrl(workFile)}
-                                className="p-1 rounded bg-white/5 hover:bg-white/10 text-white transition-all cursor-pointer"
-                                title="Preview File"
-                              >
-                                <Eye className="w-3.5 h-3.5" />
-                              </button>
-                              <button 
-                                type="button" 
-                                onClick={() => setWorkFile('')}
-                                className="p-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-all cursor-pointer"
-                                title="Remove File"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
+                        {workFiles.length > 0 && (
+                          <div className="space-y-1.5 mt-2 max-h-[120px] overflow-y-auto pr-1">
+                            {workFiles.map((file, idx) => (
+                              <div key={idx} className="flex items-center justify-between gap-3 bg-white/5 border border-[var(--glass-border)] rounded-lg p-2">
+                                <div className="flex items-center gap-2 truncate">
+                                  {file.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || file.startsWith('data:image') ? (
+                                    <img src={file} alt="Preview" className="w-8 h-8 rounded object-cover bg-white/10" />
+                                  ) : (
+                                    <FileText className="w-5 h-5 text-[var(--secondary)]" />
+                                  )}
+                                  <span className="text-[10px] text-[var(--text-secondary)] truncate max-w-[120px]">{file.split('/').pop()}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <button 
+                                    type="button" 
+                                    onClick={() => setPreviewFileUrl(file)}
+                                    className="p-1 rounded bg-white/5 hover:bg-white/10 text-white transition-all cursor-pointer"
+                                    title="Preview File"
+                                  >
+                                    <Eye className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button 
+                                    type="button" 
+                                    onClick={() => setWorkFiles(prev => prev.filter((_, i) => i !== idx))}
+                                    className="p-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-all cursor-pointer"
+                                    title="Remove File"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         )}
                       </div>
@@ -931,75 +986,79 @@ export default function UserDashboard() {
 
               {(selectedDetailLog.finalFile || selectedDetailLog.workFile) && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {selectedDetailLog.finalFile && (
-                    <div>
-                      <h4 className="text-[10px] font-bold text-[var(--primary-light)] uppercase tracking-wider mb-2">Final File (Delivered Asset)</h4>
-                      <div className="flex items-center justify-between gap-3 bg-[rgba(255,255,255,0.02)] p-3 rounded-xl border border-[var(--glass-border)]">
-                        <div className="flex items-center gap-2 truncate">
-                          {selectedDetailLog.finalFile.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || selectedDetailLog.finalFile.startsWith('data:image') ? (
-                            <img src={selectedDetailLog.finalFile} alt="Final File" className="w-8 h-8 rounded object-cover bg-white/10" />
-                          ) : (
-                            <FileText className="w-5 h-5 text-[var(--primary-light)]" />
-                          )}
-                          <span className="text-xs font-bold text-white truncate max-w-[120px]">{selectedDetailLog.finalFile.split('/').pop()}</span>
+                  {parseFiles(selectedDetailLog.finalFile).length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="text-[10px] font-bold text-[var(--primary-light)] uppercase tracking-wider">Final Files ({parseFiles(selectedDetailLog.finalFile).length})</h4>
+                      {parseFiles(selectedDetailLog.finalFile).map((file, idx) => (
+                        <div key={idx} className="flex items-center justify-between gap-3 bg-[rgba(255,255,255,0.02)] p-2.5 rounded-xl border border-[var(--glass-border)]">
+                          <div className="flex items-center gap-2 truncate">
+                            {file.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || file.startsWith('data:image') ? (
+                              <img src={file} alt={`Final File ${idx}`} className="w-8 h-8 rounded object-cover bg-white/10" />
+                            ) : (
+                              <FileText className="w-5 h-5 text-[var(--primary-light)]" />
+                            )}
+                            <span className="text-xs font-bold text-white truncate max-w-[120px]">{file.split('/').pop()}</span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button 
+                              type="button" 
+                              onClick={() => setPreviewFileUrl(file)}
+                              className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all cursor-pointer"
+                              title="Preview File"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <a 
+                              href={file}
+                              download
+                              target="_blank"
+                              rel="noreferrer"
+                              className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all"
+                              title="Download File"
+                            >
+                              <Download className="w-4 h-4" />
+                            </a>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button 
-                            type="button" 
-                            onClick={() => setPreviewFileUrl(selectedDetailLog.finalFile)}
-                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all cursor-pointer"
-                            title="Preview File"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <a 
-                            href={selectedDetailLog.finalFile}
-                            download
-                            target="_blank"
-                            rel="noreferrer"
-                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all"
-                            title="Download File"
-                          >
-                            <Download className="w-4 h-4" />
-                          </a>
-                        </div>
-                      </div>
+                      ))}
                     </div>
                   )}
 
-                  {selectedDetailLog.workFile && (
-                    <div>
-                      <h4 className="text-[10px] font-bold text-[var(--primary-light)] uppercase tracking-wider mb-2">Work File (Project/Raw File)</h4>
-                      <div className="flex items-center justify-between gap-3 bg-[rgba(255,255,255,0.02)] p-3 rounded-xl border border-[var(--glass-border)]">
-                        <div className="flex items-center gap-2 truncate">
-                          {selectedDetailLog.workFile.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || selectedDetailLog.workFile.startsWith('data:image') ? (
-                            <img src={selectedDetailLog.workFile} alt="Work File" className="w-8 h-8 rounded object-cover bg-white/10" />
-                          ) : (
-                            <FileText className="w-5 h-5 text-[var(--secondary)]" />
-                          )}
-                          <span className="text-xs font-bold text-white truncate max-w-[120px]">{selectedDetailLog.workFile.split('/').pop()}</span>
+                  {parseFiles(selectedDetailLog.workFile).length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="text-[10px] font-bold text-[var(--primary-light)] uppercase tracking-wider">Work Files ({parseFiles(selectedDetailLog.workFile).length})</h4>
+                      {parseFiles(selectedDetailLog.workFile).map((file, idx) => (
+                        <div key={idx} className="flex items-center justify-between gap-3 bg-[rgba(255,255,255,0.02)] p-2.5 rounded-xl border border-[var(--glass-border)]">
+                          <div className="flex items-center gap-2 truncate">
+                            {file.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || file.startsWith('data:image') ? (
+                              <img src={file} alt={`Work File ${idx}`} className="w-8 h-8 rounded object-cover bg-white/10" />
+                            ) : (
+                              <FileText className="w-5 h-5 text-[var(--secondary)]" />
+                            )}
+                            <span className="text-xs font-bold text-white truncate max-w-[120px]">{file.split('/').pop()}</span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button 
+                              type="button" 
+                              onClick={() => setPreviewFileUrl(file)}
+                              className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all cursor-pointer"
+                              title="Preview File"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <a 
+                              href={file}
+                              download
+                              target="_blank"
+                              rel="noreferrer"
+                              className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all"
+                              title="Download File"
+                            >
+                              <Download className="w-4 h-4" />
+                            </a>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button 
-                            type="button" 
-                            onClick={() => setPreviewFileUrl(selectedDetailLog.workFile)}
-                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all cursor-pointer"
-                            title="Preview File"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <a 
-                            href={selectedDetailLog.workFile}
-                            download
-                            target="_blank"
-                            rel="noreferrer"
-                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all"
-                            title="Download File"
-                          >
-                            <Download className="w-4 h-4" />
-                          </a>
-                        </div>
-                      </div>
+                      ))}
                     </div>
                   )}
                 </div>

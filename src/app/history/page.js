@@ -35,6 +35,18 @@ function WorkHistoryContent() {
   const [selectedLog, setSelectedLog] = useState(null);
   const [previewFileUrl, setPreviewFileUrl] = useState(null);
 
+  const parseFiles = (val) => {
+    if (!val) return [];
+    if (val.startsWith('[') && val.endsWith(']')) {
+      try {
+        return JSON.parse(val);
+      } catch (e) {
+        return [val];
+      }
+    }
+    return [val];
+  };
+
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, timeframe, taskTypeFilter, clientFilter, projectFilter, employeeFilter, roleFilter, departmentFilter]);
@@ -662,75 +674,79 @@ function WorkHistoryContent() {
 
               {(selectedLog.finalFile || selectedLog.workFile) && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {selectedLog.finalFile && (
-                    <div>
-                      <h4 className="text-[10px] font-bold text-[var(--primary-light)] uppercase tracking-wider mb-2">Final File (Delivered Asset)</h4>
-                      <div className="flex items-center justify-between gap-3 bg-[rgba(255,255,255,0.02)] p-3 rounded-xl border border-[var(--glass-border)]">
-                        <div className="flex items-center gap-2 truncate">
-                          {selectedLog.finalFile.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || selectedLog.finalFile.startsWith('data:image') ? (
-                            <img src={selectedLog.finalFile} alt="Final File" className="w-8 h-8 rounded object-cover bg-white/10" />
-                          ) : (
-                            <FileText className="w-5 h-5 text-[var(--primary-light)]" />
-                          )}
-                          <span className="text-xs font-bold text-white truncate max-w-[120px]">{selectedLog.finalFile.split('/').pop()}</span>
+                  {parseFiles(selectedLog.finalFile).length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="text-[10px] font-bold text-[var(--primary-light)] uppercase tracking-wider">Final Files ({parseFiles(selectedLog.finalFile).length})</h4>
+                      {parseFiles(selectedLog.finalFile).map((file, idx) => (
+                        <div key={idx} className="flex items-center justify-between gap-3 bg-[rgba(255,255,255,0.02)] p-2.5 rounded-xl border border-[var(--glass-border)]">
+                          <div className="flex items-center gap-2 truncate">
+                            {file.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || file.startsWith('data:image') ? (
+                              <img src={file} alt={`Final File ${idx}`} className="w-8 h-8 rounded object-cover bg-white/10" />
+                            ) : (
+                              <FileText className="w-5 h-5 text-[var(--primary-light)]" />
+                            )}
+                            <span className="text-xs font-bold text-white truncate max-w-[120px]">{file.split('/').pop()}</span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button 
+                              type="button" 
+                              onClick={() => setPreviewFileUrl(file)}
+                              className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all cursor-pointer"
+                              title="Preview File"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <a 
+                              href={file}
+                              download
+                              target="_blank"
+                              rel="noreferrer"
+                              className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all"
+                              title="Download File"
+                            >
+                              <Download className="w-4 h-4" />
+                            </a>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button 
-                            type="button" 
-                            onClick={() => setPreviewFileUrl(selectedLog.finalFile)}
-                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all cursor-pointer"
-                            title="Preview File"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <a 
-                            href={selectedLog.finalFile}
-                            download
-                            target="_blank"
-                            rel="noreferrer"
-                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all"
-                            title="Download File"
-                          >
-                            <Download className="w-4 h-4" />
-                          </a>
-                        </div>
-                      </div>
+                      ))}
                     </div>
                   )}
 
-                  {selectedLog.workFile && (
-                    <div>
-                      <h4 className="text-[10px] font-bold text-[var(--primary-light)] uppercase tracking-wider mb-2">Work File (Project/Raw File)</h4>
-                      <div className="flex items-center justify-between gap-3 bg-[rgba(255,255,255,0.02)] p-3 rounded-xl border border-[var(--glass-border)]">
-                        <div className="flex items-center gap-2 truncate">
-                          {selectedLog.workFile.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || selectedLog.workFile.startsWith('data:image') ? (
-                            <img src={selectedLog.workFile} alt="Work File" className="w-8 h-8 rounded object-cover bg-white/10" />
-                          ) : (
-                            <FileText className="w-5 h-5 text-[var(--secondary)]" />
-                          )}
-                          <span className="text-xs font-bold text-white truncate max-w-[120px]">{selectedLog.workFile.split('/').pop()}</span>
+                  {parseFiles(selectedLog.workFile).length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="text-[10px] font-bold text-[var(--primary-light)] uppercase tracking-wider">Work Files ({parseFiles(selectedLog.workFile).length})</h4>
+                      {parseFiles(selectedLog.workFile).map((file, idx) => (
+                        <div key={idx} className="flex items-center justify-between gap-3 bg-[rgba(255,255,255,0.02)] p-2.5 rounded-xl border border-[var(--glass-border)]">
+                          <div className="flex items-center gap-2 truncate">
+                            {file.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || file.startsWith('data:image') ? (
+                              <img src={file} alt={`Work File ${idx}`} className="w-8 h-8 rounded object-cover bg-white/10" />
+                            ) : (
+                              <FileText className="w-5 h-5 text-[var(--secondary)]" />
+                            )}
+                            <span className="text-xs font-bold text-white truncate max-w-[120px]">{file.split('/').pop()}</span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button 
+                              type="button" 
+                              onClick={() => setPreviewFileUrl(file)}
+                              className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all cursor-pointer"
+                              title="Preview File"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <a 
+                              href={file}
+                              download
+                              target="_blank"
+                              rel="noreferrer"
+                              className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all"
+                              title="Download File"
+                            >
+                              <Download className="w-4 h-4" />
+                            </a>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button 
-                            type="button" 
-                            onClick={() => setPreviewFileUrl(selectedLog.workFile)}
-                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all cursor-pointer"
-                            title="Preview File"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <a 
-                            href={selectedLog.workFile}
-                            download
-                            target="_blank"
-                            rel="noreferrer"
-                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all"
-                            title="Download File"
-                          >
-                            <Download className="w-4 h-4" />
-                          </a>
-                        </div>
-                      </div>
+                      ))}
                     </div>
                   )}
                 </div>
