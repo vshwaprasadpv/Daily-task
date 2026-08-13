@@ -16,7 +16,9 @@ import {
   Upload,
   Eye,
   FileText,
-  X
+  X,
+  Download,
+  Link as LinkIcon
 } from 'lucide-react';
 
 export default function UserDashboard() {
@@ -60,6 +62,7 @@ export default function UserDashboard() {
   const [notes, setNotes] = useState('');
 
   const [editingLogId, setEditingLogId] = useState(null);
+  const [selectedDetailLog, setSelectedDetailLog] = useState(null);
 
   const handleFileUpload = async (file, setUrl, setError) => {
     if (!file) return;
@@ -726,12 +729,18 @@ export default function UserDashboard() {
                               <span className="bg-[rgba(99,102,241,0.1)] text-[var(--primary-light)] px-2 py-1 rounded-md text-[10px] font-semibold">{log.taskType}</span>
                             </td>
                             <td className="p-3.5">
-                              <p className="font-bold text-white">{log.topic}</p>
-                              {log.description && <p className="text-[10px] text-[var(--text-muted)] mt-0.5 truncate max-w-[150px]">{log.description}</p>}
-                              <p className="text-[9px] text-[var(--text-secondary)] mt-1">
-                                Completed By: {log.user.name} <span className="opacity-70">({log.user.role.replace('_', ' ')})</span>
-                              </p>
-                            </td>
+                               <button
+                                 type="button"
+                                 onClick={() => setSelectedDetailLog(log)}
+                                 className="font-bold text-white text-left hover:text-[var(--primary-light)] transition-colors cursor-pointer block focus:outline-none"
+                               >
+                                 {log.topic}
+                               </button>
+                               {log.description && <p className="text-[10px] text-[var(--text-muted)] mt-0.5 truncate max-w-[150px]">{log.description}</p>}
+                               <p className="text-[9px] text-[var(--text-secondary)] mt-1">
+                                 Completed By: {log.user.name} <span className="opacity-70">({log.user.role.replace('_', ' ')})</span>
+                               </p>
+                             </td>
                             <td className="p-3.5 font-bold text-white">{Math.round((log.timeSpent / 60) * 10) / 10} hrs</td>
                             <td className="p-3.5 text-right">
                               <button 
@@ -798,6 +807,209 @@ export default function UserDashboard() {
           </div>
         </div>
       </main>
+      {/* Detail View Modal */}
+      {selectedDetailLog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="glass-panel bg-[rgba(12,12,25,0.95)] border border-[var(--glass-border)] rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            
+            <div className="px-6 py-4 border-b border-[var(--glass-border)] flex items-center justify-between sticky top-0 bg-[rgba(12,12,25,0.95)] z-10">
+              <div>
+                <h3 className="text-sm font-extrabold text-white">Work Log Card</h3>
+                <p className="text-[10px] text-[var(--text-muted)]">Completed Record Detail</p>
+              </div>
+              <button 
+                onClick={() => setSelectedDetailLog(null)}
+                className="p-1.5 rounded-lg hover:bg-[rgba(255,255,255,0.1)] text-[var(--text-muted)] transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-6 flex-1">
+              
+              <div className="bg-[rgba(99,102,241,0.05)] border border-[rgba(99,102,241,0.2)] rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <div className="text-[10px] font-bold text-[var(--primary-light)] uppercase tracking-wider mb-1">Completed By:</div>
+                  <div className="text-sm font-black text-white">
+                    {selectedDetailLog.user?.name} <span className="opacity-70 text-xs font-semibold">({(selectedDetailLog.user?.role || '').replace('_', ' ')})</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 bg-[rgba(16,185,129,0.1)] px-3 py-1.5 rounded-lg border border-[rgba(16,185,129,0.2)]">
+                  <CheckCircle className="w-4 h-4 text-[var(--success)]" />
+                  <span className="text-xs font-bold text-[var(--success)] uppercase tracking-wider">Status: Completed</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="text-[10px] font-bold text-[var(--primary-light)] uppercase tracking-wider mb-3">Task Information</h4>
+                  <ul className="space-y-3">
+                    <li>
+                      <span className="block text-[9px] text-[var(--text-muted)] uppercase tracking-wider">Task Title / Topic</span>
+                      <span className="block text-xs font-bold text-white">{selectedDetailLog.topic}</span>
+                    </li>
+                    <li>
+                      <span className="block text-[9px] text-[var(--text-muted)] uppercase tracking-wider">Client</span>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {selectedDetailLog.client?.logoUrl ? (
+                          <img 
+                            src={selectedDetailLog.client.logoUrl} 
+                            alt={selectedDetailLog.client.name} 
+                            className="w-5 h-5 rounded-md object-contain bg-white/10 p-0.5"
+                            onError={(e) => { e.target.style.display = 'none'; }}
+                          />
+                        ) : (
+                          <div className="w-5 h-5 rounded-md bg-[var(--primary)] flex items-center justify-center text-[8px] font-black text-white">
+                            {selectedDetailLog.client?.name ? selectedDetailLog.client.name.charAt(0).toUpperCase() : 'C'}
+                          </div>
+                        )}
+                        <span className="text-xs font-bold text-white">{selectedDetailLog.client?.name}</span>
+                      </div>
+                    </li>
+                    <li>
+                      <span className="block text-[9px] text-[var(--text-muted)] uppercase tracking-wider">Project</span>
+                      <span className="block text-xs font-bold text-white">{selectedDetailLog.project ? selectedDetailLog.project.name : 'N/A'}</span>
+                    </li>
+                    <li>
+                      <span className="block text-[9px] text-[var(--text-muted)] uppercase tracking-wider">Task Type</span>
+                      <span className="block text-xs font-bold text-white">{selectedDetailLog.taskType}</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="text-[10px] font-bold text-[var(--primary-light)] uppercase tracking-wider mb-3">Time & Audit Logs</h4>
+                  <ul className="space-y-3">
+                    <li>
+                      <span className="block text-[9px] text-[var(--text-muted)] uppercase tracking-wider">Completion Date</span>
+                      <span className="block text-xs font-bold text-white">{new Date(selectedDetailLog.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                    </li>
+                    <li>
+                      <span className="block text-[9px] text-[var(--text-muted)] uppercase tracking-wider">Time Spent</span>
+                      <span className="block text-xs font-bold text-white">{Math.floor(selectedDetailLog.timeSpent/60)}h {selectedDetailLog.timeSpent%60}m</span>
+                    </li>
+                    <li>
+                      <span className="block text-[9px] text-[var(--text-muted)] uppercase tracking-wider">Created At</span>
+                      <span className="block text-[11px] font-mono text-[var(--text-secondary)]">{new Date(selectedDetailLog.createdAt).toLocaleString()}</span>
+                    </li>
+                    <li>
+                      <span className="block text-[9px] text-[var(--text-muted)] uppercase tracking-wider">Last Updated</span>
+                      <span className="block text-[11px] font-mono text-[var(--text-secondary)]">{new Date(selectedDetailLog.updatedAt || selectedDetailLog.createdAt).toLocaleString()}</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              {selectedDetailLog.description && (
+                <div>
+                  <h4 className="text-[10px] font-bold text-[var(--primary-light)] uppercase tracking-wider mb-2">Description</h4>
+                  <p className="text-xs text-[var(--text-secondary)] bg-[rgba(255,255,255,0.02)] p-4 rounded-xl border border-[var(--glass-border)] leading-relaxed">
+                    {selectedDetailLog.description}
+                  </p>
+                </div>
+              )}
+
+              {selectedDetailLog.attachmentUrl && (
+                <div>
+                  <h4 className="text-[10px] font-bold text-[var(--primary-light)] uppercase tracking-wider mb-2">Attachment Preview</h4>
+                  <a 
+                    href={selectedDetailLog.attachmentUrl} 
+                    target="_blank" 
+                    rel="noreferrer"
+                    className="flex items-center gap-3 bg-[rgba(255,255,255,0.02)] hover:bg-[rgba(255,255,255,0.05)] p-4 rounded-xl border border-[var(--glass-border)] transition-colors group"
+                  >
+                    <div className="p-2 bg-[rgba(99,102,241,0.1)] rounded-lg text-[var(--primary-light)] group-hover:scale-110 transition-transform">
+                      <LinkIcon className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="block text-xs font-bold text-white">View Attachment</span>
+                      <span className="block text-[9px] text-[var(--text-muted)] truncate max-w-sm">{selectedDetailLog.attachmentUrl}</span>
+                    </div>
+                  </a>
+                </div>
+              )}
+
+              {(selectedDetailLog.finalFile || selectedDetailLog.workFile) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {selectedDetailLog.finalFile && (
+                    <div>
+                      <h4 className="text-[10px] font-bold text-[var(--primary-light)] uppercase tracking-wider mb-2">Final File (Delivered Asset)</h4>
+                      <div className="flex items-center justify-between gap-3 bg-[rgba(255,255,255,0.02)] p-3 rounded-xl border border-[var(--glass-border)]">
+                        <div className="flex items-center gap-2 truncate">
+                          {selectedDetailLog.finalFile.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || selectedDetailLog.finalFile.startsWith('data:image') ? (
+                            <img src={selectedDetailLog.finalFile} alt="Final File" className="w-8 h-8 rounded object-cover bg-white/10" />
+                          ) : (
+                            <FileText className="w-5 h-5 text-[var(--primary-light)]" />
+                          )}
+                          <span className="text-xs font-bold text-white truncate max-w-[120px]">{selectedDetailLog.finalFile.split('/').pop()}</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button 
+                            type="button" 
+                            onClick={() => setPreviewFileUrl(selectedDetailLog.finalFile)}
+                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all cursor-pointer"
+                            title="Preview File"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <a 
+                            href={selectedDetailLog.finalFile}
+                            download
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all"
+                            title="Download File"
+                          >
+                            <Download className="w-4 h-4" />
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedDetailLog.workFile && (
+                    <div>
+                      <h4 className="text-[10px] font-bold text-[var(--primary-light)] uppercase tracking-wider mb-2">Work File (Project/Raw File)</h4>
+                      <div className="flex items-center justify-between gap-3 bg-[rgba(255,255,255,0.02)] p-3 rounded-xl border border-[var(--glass-border)]">
+                        <div className="flex items-center gap-2 truncate">
+                          {selectedDetailLog.workFile.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || selectedDetailLog.workFile.startsWith('data:image') ? (
+                            <img src={selectedDetailLog.workFile} alt="Work File" className="w-8 h-8 rounded object-cover bg-white/10" />
+                          ) : (
+                            <FileText className="w-5 h-5 text-[var(--secondary)]" />
+                          )}
+                          <span className="text-xs font-bold text-white truncate max-w-[120px]">{selectedDetailLog.workFile.split('/').pop()}</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button 
+                            type="button" 
+                            onClick={() => setPreviewFileUrl(selectedDetailLog.workFile)}
+                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all cursor-pointer"
+                            title="Preview File"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <a 
+                            href={selectedDetailLog.workFile}
+                            download
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all"
+                            title="Download File"
+                          >
+                            <Download className="w-4 h-4" />
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Lightbox File Preview Modal */}
       {previewFileUrl && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
