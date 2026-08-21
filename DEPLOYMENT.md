@@ -112,3 +112,7 @@ Your application is now configured for Vercel deployment with Neon PostgreSQL. T
 ---
 
 **Ready to deploy? Add the environment variables to Vercel and watch your app go live! 🎉**
+
+---
+
+**Last Updated**: August 21, 2026
