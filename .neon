@@ -1,8 +1,5 @@
 {
-  "_init": {
-    "features": [
-      "database",
-      "auth"
-    ]
-  }
+  "orgId": "org-morning-sun-76407859",
+  "projectId": "morning-butterfly-67267669",
+  "branch": "production"
 }
