@@ -1,0 +1,13 @@
+.git
+.gitignore
+README.md
+.env
+.env.local
+.env.*.local
+node_modules
+.next
+.neon
+backups/
+scratch/
+.agents/
+prisma/dev.db*
