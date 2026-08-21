@@ -1,13 +1,10 @@
 .git
 .gitignore
 README.md
+DEPLOYMENT.md
 .env
 .env.local
 .env.*.local
-node_modules
-.next
-.neon
 backups/
 scratch/
 .agents/
-prisma/dev.db*
